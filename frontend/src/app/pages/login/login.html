@@ -1,0 +1,37 @@
+<div class="login-container">
+  <div class="glass-card">
+    <div class="text-center mb-4">
+      <div class="logo-container">PAD</div>
+      <h2 class="mt-3 mb-1">Bienvenido</h2>
+      <p class="text-muted-light small">Plataforma Académica Distribuida</p>
+    </div>
+
+    <div *ngIf="errorMessage" class="alert alert-danger bg-danger text-white border-0 rounded-3 small py-2 fade show" role="alert">
+      {{ errorMessage }}
+    </div>
+
+    <form (ngSubmit)="login()">
+      <div class="mb-3">
+        <label for="username" class="form-label text-muted-light small fw-medium">Usuario</label>
+        <input type="text" class="form-control-custom w-100" id="username" [(ngModel)]="credentials.username" name="username" placeholder="ej. director, docente1" required autocomplete="username">
+      </div>
+      
+      <div class="mb-4">
+        <label for="password" class="form-label text-muted-light small fw-medium">Contraseña</label>
+        <input type="password" class="form-control-custom w-100" id="password" [(ngModel)]="credentials.password" name="password" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      
+      <button type="submit" class="btn btn-login w-100 d-flex justify-content-center align-items-center" [disabled]="isLoading || !credentials.username || !credentials.password">
+        <span *ngIf="!isLoading">Ingresar al Sistema</span>
+        <div *ngIf="isLoading" class="spinner-border spinner-border-sm text-light me-2" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <span *ngIf="isLoading">Verificando...</span>
+      </button>
+    </form>
+    
+    <div class="text-center mt-4 pt-3 border-top border-secondary">
+      <p class="text-muted-light" style="font-size: 0.7rem;">&copy; 2026 Ministerio de Educación. Todos los derechos reservados.</p>
+    </div>
+  </div>
+</div>

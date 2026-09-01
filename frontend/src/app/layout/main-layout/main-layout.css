@@ -1,0 +1,33 @@
+.layout-container {
+  display: block;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-main);
+  position: relative;
+}
+
+.main-content {
+  height: 100%;
+  padding-bottom: 16px;
+  padding-left: 100px; /* Space for the left vertical dock (68px dock + 16px margin + 16px gap) */
+  overflow-y: auto;
+  /* Scrollbar personalizado */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+
+/* En móvil: volver a padding bottom para el dock inferior */
+@media (max-width: 480px) {
+  .main-content {
+    padding-left: 0;
+    padding-bottom: 96px;
+  }
+}
+
+.main-content::-webkit-scrollbar { width: 6px; }
+.main-content::-webkit-scrollbar-track { background: transparent; }
+.main-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 999px; }
+
+.page-content {
+  height: 100%;
+}

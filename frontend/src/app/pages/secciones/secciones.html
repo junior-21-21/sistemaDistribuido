@@ -1,0 +1,167 @@
+<div class="page-container p-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="page-title mb-1">Gestión de Secciones</h2>
+      <p class="text-muted">Administra las aulas y sus capacidades.</p>
+    </div>
+    <button class="btn btn-primary-custom" (click)="openModal()">
+      <i class="bi bi-plus-lg me-2"></i>Nueva Sección
+    </button>
+  </div>
+
+  <div class="card glass-card border-0 mb-4 filters-card p-3">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="input-group">
+          <span class="input-group-text bg-transparent border-end-0 custom-border"><i class="bi bi-search text-muted"></i></span>
+          <input type="text" class="form-control border-start-0 custom-input-filter" placeholder="Buscar sección..." [(ngModel)]="searchTerm">
+        </div>
+      </div>
+      <div class="col-md-4">
+        <select class="form-select custom-select-filter" [(ngModel)]="filterGrado">
+          <option value="">Todos los grados</option>
+          @for (grado of grados; track grado.id) {
+            <option [value]="grado.id">{{ grado.nombre }} - {{ grado.nivelNombre }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card glass-card border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table custom-table mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre</th>
+              <th>Grado</th>
+              <th>Turno</th>
+              <th>Capacidad</th>
+              <th>Año</th>
+              <th>Estado</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (seccion of filteredSecciones; track seccion.id) {
+              <tr>
+                <td><span class="text-muted">#{{ seccion.id }}</span></td>
+                <td><span class="fw-semibold text-light">{{ seccion.nombre }}</span></td>
+                <td><span class="badge badge-grado">{{ seccion.gradoNombre }} - {{ seccion.nivelNombre }}</span></td>
+                <td>
+                  <span class="badge" [class.bg-info-custom]="seccion.turno === 'MANANA'" [class.bg-warning-custom]="seccion.turno === 'TARDE'">
+                    {{ seccion.turno === 'MANANA' ? 'Mañana' : 'Tarde' }}
+                  </span>
+                </td>
+                <td>{{ seccion.capacidadMaxima }} alum.</td>
+                <td>{{ seccion.anioEscolar }}</td>
+                <td>
+                  @if (seccion.activa) {
+                    <span class="badge bg-success-custom">Activa</span>
+                  } @else {
+                    <span class="badge bg-danger-custom">Inactiva</span>
+                  }
+                </td>
+                <td class="text-end">
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-action" (click)="openModal(seccion)" title="Editar">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-action text-danger" (click)="deleteSeccion(seccion.id!)" title="Desactivar">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  <div class="empty-state">
+                    <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
+                    @if (loadError) {
+                      <p class="mb-1 text-danger">Error cargando datos. Reintentando...</p>
+                      <small class="text-muted">{{ loadError }}</small>
+                    } @else {
+                      <p class="mb-0">No hay secciones registradas en el sistema.</p>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Crear/Editar Sección -->
+@if (showModal) {
+<div class="modal-backdrop-custom d-flex align-items-center justify-content-center">
+  <div class="modal-content-custom glass-card p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="mb-0 text-light">{{ editingSeccionId ? 'Editar' : 'Nueva' }} Sección</h4>
+      <button class="btn-close-custom" (click)="closeModal()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <form [formGroup]="seccionForm" (ngSubmit)="onSubmit()">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label text-muted small text-uppercase">Nombre (Letra)</label>
+          <input type="text" class="form-control custom-input" formControlName="nombre" placeholder="Ej. A, B, C">
+          @if (seccionForm.get('nombre')?.invalid && seccionForm.get('nombre')?.touched) {
+            <small class="text-danger mt-1 d-block">El nombre es requerido.</small>
+          }
+        </div>
+        
+        <div class="col-md-6">
+          <label class="form-label text-muted small text-uppercase">Grado</label>
+          <select class="form-select custom-select" formControlName="gradoId">
+            <option value="" disabled>Seleccione grado</option>
+            @for (grado of grados; track grado.id) {
+              <option [value]="grado.id">{{ grado.nombre }} - {{ grado.nivelNombre }}</option>
+            }
+          </select>
+          @if (seccionForm.get('gradoId')?.invalid && seccionForm.get('gradoId')?.touched) {
+            <small class="text-danger mt-1 d-block">Debe seleccionar un grado.</small>
+          }
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label text-muted small text-uppercase">Turno</label>
+          <select class="form-select custom-select" formControlName="turno">
+            <option value="MANANA">Mañana</option>
+            <option value="TARDE">Tarde</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label text-muted small text-uppercase">Año Escolar</label>
+          <input type="number" class="form-control custom-input" formControlName="anioEscolar">
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label text-muted small text-uppercase">Capacidad Máxima</label>
+          <input type="number" class="form-control custom-input" formControlName="capacidadMaxima">
+        </div>
+
+        <div class="col-md-6 d-flex align-items-center">
+          <div class="form-check form-switch mt-4">
+            <input class="form-check-input custom-switch" type="checkbox" id="activaSwitch" formControlName="activa">
+            <label class="form-check-label ms-2 text-light" for="activaSwitch">Sección Activa</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top border-secondary">
+        <button type="button" class="btn btn-outline-secondary custom-btn-outline" (click)="closeModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary-custom px-4" [disabled]="seccionForm.invalid">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+}

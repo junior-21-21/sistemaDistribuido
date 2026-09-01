@@ -1,0 +1,35 @@
+.topico-container { padding: 2rem; }
+.page-title { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
+
+.student-list { max-height: 500px; overflow-y: auto; }
+
+.student-item {
+  background: transparent;
+  transition: background 0.2s;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+.student-item:hover { background: rgba(255,255,255,0.03); }
+.student-item.selected { background: rgba(236, 72, 153, 0.06) !important; border-left: 3px solid #ec4899 !important; }
+
+.student-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ec4899;
+  flex-shrink: 0;
+}
+
+.info-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border-color);
+}
+
+.nueva-atencion-form {
+  background: rgba(59, 130, 246, 0.04);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+}

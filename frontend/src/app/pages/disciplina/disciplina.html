@@ -1,0 +1,131 @@
+<div class="disciplina-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Disciplina — Papeletas Digitales</h1>
+      <p class="subtitle">Reemplaza las papeletas físicas. Registro inmediato de incidencias y méritos.</p>
+    </div>
+    <button class="btn-primary" (click)="abrirModal()"><i class="bi bi-plus-lg me-1"></i> Nueva Papeleta</button>
+  </div>
+
+  <!-- Success message -->
+  @if (successMessage) {
+    <div class="alert-success"><i class="bi bi-check-circle-fill me-2"></i> {{ successMessage }}</div>
+  }
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card stat-orange">
+      <span class="stat-icon"><i class="bi bi-clock-history"></i></span>
+      <div>
+        <div class="stat-value">{{ getTardanzas() }}</div>
+        <div class="stat-label">Tardanzas</div>
+      </div>
+    </div>
+    <div class="stat-card stat-red">
+      <span class="stat-icon"><i class="bi bi-shield-fill-exclamation text-danger"></i></span>
+      <div>
+        <div class="stat-value">{{ getFaltasGraves() }}</div>
+        <div class="stat-label">Faltas Graves</div>
+      </div>
+    </div>
+    <div class="stat-card stat-green">
+      <span class="stat-icon"><i class="bi bi-star-fill text-success"></i></span>
+      <div>
+        <div class="stat-value">{{ getMeritos() }}</div>
+        <div class="stat-label">Méritos</div>
+      </div>
+    </div>
+    <div class="stat-card stat-blue">
+      <span class="stat-icon"><i class="bi bi-file-earmark-text"></i></span>
+      <div>
+        <div class="stat-value">{{ reportes.length }}</div>
+        <div class="stat-label">Total Reportes</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  @if (loading) {
+    <div class="loading">Cargando reportes...</div>
+  } @else {
+    <div class="table-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Estudiante</th>
+            <th>Tipo</th>
+            <th>Descripción</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of reportes; track r.id) {
+            <tr>
+              <td><strong>{{ r.nombreEstudiante ?? 'Estudiante #' + r.estudianteId }}</strong></td>
+              <td><span class="badge" [class]="tipoBadgeClass(r.tipo)">{{ tipoLabel(r.tipo) }}</span></td>
+              <td class="desc-cell">{{ r.descripcion }}</td>
+              <td><span class="estado-badge estado-{{ (r.estado ?? 'EMITIDO').toLowerCase() }}">{{ r.estado ?? 'EMITIDO' }}</span></td>
+              <td class="fecha-cell">{{ r.fechaReporte | date:'dd/MM/yyyy HH:mm' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="empty-row">No hay reportes disciplinarios registrados.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <!-- Modal Nueva Papeleta -->
+  @if (showModal) {
+    <div class="modal-overlay" (click)="cerrarModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Nueva Papeleta Digital</h2>
+          <button class="btn-close" (click)="cerrarModal()">✕</button>
+        </div>
+        <form [formGroup]="reporteForm" (ngSubmit)="guardarReporte()">
+          <div class="form-group">
+            <label>Estudiante *</label>
+            <select formControlName="estudianteId" class="form-control">
+              <option value="null" disabled>Seleccionar estudiante...</option>
+              @for (est of demoEstudiantes; track est.id) {
+                <option [value]="est.id">{{ est.nombre }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tipo de Incidencia *</label>
+            <div class="tipo-grid">
+              @for (tipo of tiposReporte; track tipo.value) {
+                <label class="tipo-option">
+                  <input type="radio" formControlName="tipo" [value]="tipo.value">
+                  {{ tipo.label }}
+                </label>
+              }
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Descripción *</label>
+            <textarea formControlName="descripcion" class="form-control" rows="3"
+              placeholder="Descripción detallada de la incidencia..."></textarea>
+            @if (reporteForm.get('descripcion')?.touched && reporteForm.get('descripcion')?.invalid) {
+              <span class="error-msg">Mínimo 10 caracteres</span>
+            }
+          </div>
+          <div class="form-group">
+            <label>Observaciones adicionales</label>
+            <input formControlName="observaciones" class="form-control" placeholder="Opcional...">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary" (click)="cerrarModal()">Cancelar</button>
+            <button type="submit" class="btn-primary" [disabled]="submitting">
+              {{ submitting ? 'Guardando...' : '📄 Emitir Papeleta' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

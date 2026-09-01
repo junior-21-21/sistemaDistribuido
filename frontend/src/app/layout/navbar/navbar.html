@@ -1,0 +1,51 @@
+<div class="navbar-wrapper">
+  <header class="app-navbar glass-panel d-flex align-items-center px-4">
+    <!-- Fecha y hora en vivo -->
+    <div class="date-time d-flex align-items-center gap-3">
+      <div class="time-box">
+        <i class="bi bi-clock-history time-icon"></i>
+        <span class="current-time fw-bold">{{ currentTime }}</span>
+      </div>
+      <span class="current-date text-muted">{{ currentDate }}</span>
+    </div>
+
+    <!-- Espaciador -->
+    <div class="flex-grow-1"></div>
+
+    <!-- Estado del sistema -->
+    <div class="d-flex align-items-center gap-4">
+      
+      <!-- Indicador de estado -->
+      <div class="status-indicator d-flex align-items-center gap-2" title="Conexión estable">
+        <span class="status-dot"></span>
+        <span class="status-text text-muted">Sistema en línea</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Institución -->
+      <div class="institution-info d-flex align-items-center gap-2 text-muted">
+        <i class="bi bi-building"></i>
+        <span>I.E.P. Huamanga</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Usuario actual (nombre + rol) -->
+      @if (authService.currentUser(); as user) {
+        <div class="user-profile d-flex align-items-center gap-3">
+          <div class="user-info text-end">
+            <div class="user-name">{{ user.name }}</div>
+            <div class="role-pill">{{ user.role }}</div>
+          </div>
+          <div class="avatar-circle">
+            {{ user.name.charAt(0) }}
+          </div>
+          <button class="btn-logout" (click)="authService.logout()" title="Cerrar sesión">
+            <i class="bi bi-box-arrow-right"></i>
+          </button>
+        </div>
+      }
+    </div>
+  </header>
+</div>

@@ -1,0 +1,135 @@
+.navbar-wrapper {
+  padding: 1rem 2rem;
+  position: sticky;
+  top: 0;
+  z-index: 500;
+}
+
+.app-navbar {
+  height: 64px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.1) !important;
+  transition: all 0.3s ease;
+}
+
+.time-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+
+.time-icon {
+  color: #ef4444;
+  font-size: 1.1rem;
+}
+
+.current-date {
+  font-size: 0.85rem;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.status-indicator {
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background: #dc2626;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #dc2626;
+  animation: pulse-red 2s infinite;
+}
+
+.status-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #fca5a5 !important;
+}
+
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0); }
+}
+
+.institution-info {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.user-profile {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px 8px 6px 16px;
+  border-radius: 100px;
+  transition: all 0.3s ease;
+}
+
+.user-profile:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.role-pill {
+  font-size: 0.65rem;
+  color: #fca5a5;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.avatar-circle {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #ef4444, #991b1b);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #fff;
+  font-size: 1.1rem;
+  box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);
+}
+
+.btn-logout {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: #a1a1aa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  background: #ef4444;
+  color: #fff;
+  transform: scale(1.05);
+}

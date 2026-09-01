@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arquitectura para PPT - Plataforma Académica Distribuida</title>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 1);
+            --primary: #3b82f6;
+            --secondary: #06b6d4;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            
+            --node-front: rgba(6, 182, 212, 0.1);
+            --node-front-border: rgba(6, 182, 212, 0.3);
+            --node-gate: rgba(168, 85, 247, 0.1);
+            --node-gate-border: rgba(168, 85, 247, 0.3);
+            --node-micro: rgba(59, 130, 246, 0.1);
+            --node-micro-border: rgba(59, 130, 246, 0.3);
+            --node-db: rgba(34, 197, 94, 0.1);
+            --node-db-border: rgba(34, 197, 94, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Optimize for PPT (16:9 ratio, usually 1280x720 or 1920x1080) */
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            width: 1280px; /* Ancho fijo para presentación */
+            height: 720px; /* Alto fijo para presentación */
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden; /* Sin scroll para asegurar que entra en 1 pantalla */
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(168, 85, 247, 0.05) 0%, transparent 50%);
+            transform-origin: top left;
+        }
+
+        header {
+            text-align: center;
+            padding: 1rem 1rem 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #0f172a 0%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.2rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 400;
+        }
+
+        .architecture-container {
+            width: 100%;
+            padding: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem; /* Gap más compacto */
+        }
+
+        .node-row {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Card (Compact) */
+        .node {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 0.75rem;
+            min-width: 200px;
+            max-width: 230px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .node-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .node-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.2rem;
+            line-height: 1.1;
+        }
+
+        .node-port {
+            font-family: monospace;
+            font-size: 0.7rem;
+            background: rgba(15, 23, 42, 0.04);
+            padding: 2px 6px;
+            border-radius: 6px;
+            color: #334155;
+            margin-bottom: 0.4rem;
+            border: 1px solid rgba(0,0,0,0.05);
+            font-weight: 600;
+        }
+
+        .node-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+            margin-bottom: 0.5rem;
+        }
+
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+            margin-top: auto;
+            width: 100%;
+        }
+
+        .tech-badge {
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 12px;
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .db-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            font-weight: 600;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Specific node styles */
+        .type-frontend .node-icon { background: var(--node-front); border: 1px solid var(--node-front-border); color: #0891b2; }
+        .type-gateway .node-icon { background: var(--node-gate); border: 1px solid var(--node-gate-border); color: #9333ea; }
+        .type-micro .node-icon { background: var(--node-micro); border: 1px solid var(--node-micro-border); color: #2563eb; }
+        .type-db .node-icon { background: var(--node-db); border: 1px solid var(--node-db-border); color: #16a34a; }
+
+        /* Connection visual hints */
+        .connection-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #cbd5e1;
+            font-size: 1.2rem;
+            line-height: 0.8;
+            height: 30px;
+        }
+        
+        .connection-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #94a3b8;
+            background: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            transform: translateY(-5px);
+            z-index: 2;
+        }
+        
+        .microservices-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: 1rem; /* 5 microservicios en una línea ajustada */
+            width: 100%;
+            padding: 1.2rem 1rem;
+            background: rgba(255,255,255,0.4);
+            border-radius: 20px;
+            border: 1px dashed rgba(15, 23, 42, 0.1);
+            position: relative;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.02);
+        }
+
+        .microservices-wrapper::after {
+            content: 'Docker Bridge Network (pad-network)';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            padding: 2px 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--primary);
+            border-radius: 10px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        /* Make Database node slightly wider to fit its content properly in compact mode */
+        .type-db {
+            min-width: 350px;
+            max-width: 400px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Arquitectura Detallada</h1>
+        <p>Estructura de Servicios, Tecnologías y Conexiones</p>
+    </header>
+
+    <div class="architecture-container">
+        
+        <!-- Frontend Layer -->
+        <div class="node-row">
+            <div class="node type-frontend">
+                <div class="node-icon"><i class="bi bi-browser-chrome"></i></div>
+                <div class="node-title">Frontend SPA</div>
+                <div class="node-port">Puerto: 80</div>
+                <div class="node-desc">Capa de presentación. Servido por Nginx.</div>
+                <div class="tech-stack">
+                    <span class="tech-badge"><i class="bi bi-filetype-ts"></i> Angular 18</span>
+                    <span class="tech-badge">CSS Vanilla</span>
+                    <span class="tech-badge">Nginx</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="connection-arrow">
+            <span class="connection-label">HTTP REST (/api/*)</span>
+            <i class="bi bi-arrow-down"></i>
+        </div>
+
+        <!-- API Gateway Layer -->
+        <div class="node-row">
+            <div class="node type-gateway">
+                <div class="node-icon"><i class="bi bi-router"></i></div>
+                <div class="node-title">API Gateway</div>
+                <div class="node-port">Puerto: 8080</div>
+                <div class="node-desc">Enruta peticiones a los microservicios.</div>
+                <div class="tech-stack">
+                    <span class="tech-badge">Spring Boot 3.4.3</span>
+                    <span class="tech-badge">Java 17</span>
+                    <span class="tech-badge">Spring Cloud Gateway</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="connection-arrow">
+            <span class="connection-label">Enrutamiento HTTP Interno</span>
+            <i class="bi bi-arrows-expand"></i>
+        </div>
+
+        <!-- Microservices Layer -->
+        <div class="microservices-wrapper">
+            <div class="node type-micro">
+                <div class="node-icon"><i class="bi bi-person-badge"></i></div>
+                <div class="node-title">S. Estudiantes</div>
+                <div class="node-port">Puerto: 8082</div>
+                <div class="node-desc">Info de estudiantes y Login (Auth/JWT).</div>
+                <div class="db-badge">BD: ac._estudiantes</div>
+                <div class="tech-stack" style="margin-top: 5px;">
+                    <span class="tech-badge">Spring Security (JWT)</span>
+                    <span class="tech-badge">Data JPA</span>
+                </div>
+            </div>
+
+            <div class="node type-micro">
+                <div class="node-icon"><i class="bi bi-journal-bookmark"></i></div>
+                <div class="node-title">S. Cursos</div>
+                <div class="node-port">Puerto: 8083</div>
+                <div class="node-desc">Cursos, horarios y docentes.</div>
+                <div class="db-badge">BD: ac._cursos</div>
+                <div class="tech-stack" style="margin-top: 5px;">
+                    <span class="tech-badge">Spring Boot</span>
+                    <span class="tech-badge">Data JPA</span>
+                </div>
+            </div>
+
+            <div class="node type-micro">
+                <div class="node-icon"><i class="bi bi-card-checklist"></i></div>
+                <div class="node-title">S. Evaluaciones</div>
+                <div class="node-port">Puerto: 8084</div>
+                <div class="node-desc">Notas y registro de asistencias.</div>
+                <div class="db-badge">BD: ac._evaluaciones</div>
+                <div class="tech-stack" style="margin-top: 5px;">
+                    <span class="tech-badge">Spring Boot</span>
+                    <span class="tech-badge">Hibernate Envers</span>
+                </div>
+            </div>
+
+            <div class="node type-micro">
+                <div class="node-icon"><i class="bi bi-shield-exclamation"></i></div>
+                <div class="node-title">S. Disciplina</div>
+                <div class="node-port">Puerto: 8081</div>
+                <div class="node-desc">Registro de incidencias y reportes.</div>
+                <div class="db-badge">BD: ac._disciplina</div>
+                <div class="tech-stack" style="margin-top: 5px;">
+                    <span class="tech-badge">Spring Boot</span>
+                    <span class="tech-badge">Data JPA</span>
+                </div>
+            </div>
+
+            <div class="node type-micro">
+                <div class="node-icon"><i class="bi bi-bar-chart-line"></i></div>
+                <div class="node-title">S. Reportes</div>
+                <div class="node-port">Puerto: 8085</div>
+                <div class="node-desc">Estadísticas. Peticiones HTTP internas.</div>
+                <div class="db-badge">BD: ac._reportes</div>
+                <div class="tech-stack" style="margin-top: 5px;">
+                    <span class="tech-badge">Spring Boot</span>
+                    <span class="tech-badge">WebClient / Feign</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="connection-arrow">
+            <span class="connection-label">Conexión JDBC (HikariCP)</span>
+            <i class="bi bi-arrow-down"></i>
+        </div>
+
+        <!-- Database Layer -->
+        <div class="node-row">
+            <div class="node type-db">
+                <div class="node-icon"><i class="bi bi-database-fill-gear"></i></div>
+                <div class="node-title">Servidor de Base de Datos</div>
+                <div class="node-port">Puerto: 5432</div>
+                <div class="node-desc">Bases de datos lógicas aisladas (una por microservicio).</div>
+                <div class="tech-stack">
+                    <span class="tech-badge">PostgreSQL 15</span>
+                    <span class="tech-badge">pgAdmin 4 (Puerto 5050)</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

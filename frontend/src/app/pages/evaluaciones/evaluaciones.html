@@ -1,0 +1,91 @@
+<div class="evaluaciones-container">
+  <div class="page-header mb-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <h1 class="page-title mb-1">Registro de Notas por Competencias</h1>
+        <p class="text-muted small mb-0">Escala de Evaluación MINEDU: <strong class="text-success">AD</strong> — Logro Destacado &nbsp;|&nbsp; <strong class="text-primary">A</strong> — Logro Esperado &nbsp;|&nbsp; <strong class="text-warning">B</strong> — En Proceso &nbsp;|&nbsp; <strong class="text-danger">C</strong> — En Inicio</p>
+      </div>
+      <div class="d-flex gap-2">
+        @if (savedMessage) {
+          <span class="alert alert-success py-2 px-3 mb-0 small fw-medium">{{ savedMessage }}</span>
+        }
+        <button class="btn btn-primary px-4" (click)="guardarNotas()" [disabled]="saving">
+          @if (saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
+          {{ saving ? 'Guardando...' : 'Guardar Notas' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selector de contexto -->
+  <div class="card border-0 mb-4 p-4">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label">Sección</label>
+        <select class="form-select" [(ngModel)]="currentGrado">
+          <option>3ro "A"</option>
+          <option>3ro "B"</option>
+          <option>4to "A"</option>
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Área Curricular</label>
+        <select class="form-select" [(ngModel)]="currentCurso">
+          @for (comp of competencias; track comp) {
+            <option [value]="comp">{{ comp }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Período</label>
+        <select class="form-select" [(ngModel)]="currentPeriodo">
+          <option>I Bimestre 2026</option>
+          <option>II Bimestre 2026</option>
+          <option>III Bimestre 2026</option>
+          <option>IV Bimestre 2026</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de notas -->
+  <div class="card border-0">
+    <div class="card-header bg-transparent px-4 pt-4 pb-3 border-0">
+      <h5 class="mb-0 fw-bold">{{ currentGrado }} — {{ currentCurso }} — {{ currentPeriodo }}</h5>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead>
+            <tr>
+              <th style="width: 50px;">#</th>
+              <th>Apellidos y Nombres</th>
+              @for (comp of competencias; track comp) {
+                <th class="text-center">{{ comp }}</th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (est of estudiantes; track est.id; let i = $index) {
+              <tr>
+                <td class="text-muted">{{ i + 1 }}</td>
+                <td>
+                  <div class="fw-medium">{{ est.apellido }}, {{ est.nombre }}</div>
+                </td>
+                @for (comp of competencias; track comp) {
+                  <td class="text-center">
+                    <select class="escala-select"
+                      [(ngModel)]="est.notas[comp]"
+                      [class]="'escala-' + (est.notas[comp] || '').toLowerCase()">
+                      @for (e of escalas; track e) { <option [value]="e">{{ e }}</option> }
+                    </select>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

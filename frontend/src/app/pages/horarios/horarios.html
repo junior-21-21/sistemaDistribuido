@@ -1,0 +1,222 @@
+<div class="horarios-container">
+  <!-- Header -->
+  <div class="page-header d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="page-title mb-1">
+        <i class="bi bi-calendar3 me-2 text-primary-glow"></i>Motor de Horarios Inteligente
+      </h1>
+      <p class="text-muted small mb-0">Generación y optimización de horarios con Inteligencia Artificial.</p>
+    </div>
+  </div>
+
+  @if (error) {
+    <div class="alert alert-danger mb-4 fw-medium d-flex align-items-center gap-2" style="background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.3); color: #fca5a5;">
+      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+    </div>
+  }
+  @if (success) {
+    <div class="alert alert-success mb-4 fw-medium d-flex align-items-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7;">
+      <i class="bi bi-check-circle-fill"></i> {{ success }}
+    </div>
+  }
+
+  <div class="row g-4">
+    <!-- Panel Izquierdo: Controles IA Global -->
+    <div class="col-md-3">
+      <div class="glass-panel p-4 h-100 d-flex flex-column">
+        <h5 class="fw-bold mb-4" style="color: var(--text-primary);">Configuración Global</h5>
+        
+        <form [formGroup]="horarioForm">
+          <div class="mb-3">
+            <label class="form-label small fw-semibold text-muted">Turno a Generar</label>
+            <select class="form-select custom-select" formControlName="turno">
+              <option value="MANANA">Turno Mañana (08:00 - 13:00)</option>
+              <option value="TARDE">Turno Tarde (14:00 - 19:00)</option>
+            </select>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label small fw-semibold text-muted">Días Laborables</label>
+            <select class="form-select custom-select">
+              <option value="5">Lunes a Viernes</option>
+              <option value="6">Lunes a Sábado</option>
+            </select>
+          </div>
+
+          <div class="alert mt-auto mb-4 p-3" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px;">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi bi-cpu text-primary-glow" style="font-size: 1.2rem; color: #60a5fa;"></i>
+              <div class="small" style="color: #93c5fd;">
+                <strong>Algoritmo Genético:</strong> El motor procesará todos los docentes, aulas y cursos del turno simultáneamente para crear una matriz sin colisiones.
+              </div>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-primary w-100 fw-bold py-2 mb-2 btn-ai-glow" 
+                  (click)="generarHorarioIA()" [disabled]="generandoIA">
+            @if (generandoIA) {
+              <span class="spinner-border spinner-border-sm me-2"></span> Ejecutando Algoritmo...
+            } @else {
+              <i class="bi bi-magic me-2"></i> Generar Matriz Global
+            }
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Panel Derecho: Calendario Visual (Filtro por Docente/Sección) -->
+    <div class="col-md-9">
+      <div class="glass-panel p-4 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+          <!-- Toolbar Derecha -->
+        <div class="d-flex flex-column gap-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted small">Selecciona un bloque para editarlo manualmente.</span>
+            
+            @if (calendario.length > 0) {
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-light btn-sm" (click)="exportarExcel()">
+                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Excel
+              </button>
+              <button class="btn btn-outline-light btn-sm" (click)="exportarPDF()">
+                <i class="bi bi-file-earmark-pdf me-1"></i> PDF
+              </button>
+              <button class="btn btn-success btn-sm btn-glow" (click)="guardarMatrizDefinitiva()" [disabled]="guardandoDefinitivo || horarioForm.value.tipoFiltro !== 'seccion'">
+                @if (guardandoDefinitivo) {
+                  <span class="spinner-border spinner-border-sm me-1"></span> Guardando...
+                } @else {
+                  <i class="bi bi-cloud-check me-1"></i> Guardar Horario
+                }
+              </button>
+            </div>
+            }
+          </div>
+          <div class="d-flex gap-2">
+            <div [formGroup]="horarioForm" class="d-flex gap-2">
+              <select class="form-select custom-select form-select-sm w-auto" [disabled]="calendario.length === 0" formControlName="tipoFiltro">
+                <option value="seccion">Filtrar por Sección</option>
+                <option value="docente">Filtrar por Docente</option>
+              </select>
+              
+              @if (horarioForm.value.tipoFiltro === 'docente') {
+                <select class="form-select custom-select form-select-sm w-auto" [disabled]="calendario.length === 0" formControlName="docenteId">
+                  @for (d of docentes; track d.id) {
+                    <option [value]="d.id">{{ d.nombre }}</option>
+                  }
+                </select>
+              } @else {
+                <select class="form-select custom-select form-select-sm w-auto" [disabled]="calendario.length === 0" formControlName="seccionFiltro">
+                  <option value="A">Sección A</option>
+                  <option value="B">Sección B</option>
+                  <option value="C">Sección C</option>
+                </select>
+              }
+            </div>
+          </div>
+        </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table custom-calendar-table table-bordered mb-0">
+            <thead>
+              <tr>
+                <th style="width: 10%;">Hora</th>
+                <th style="width: 15%;">Lunes</th>
+                <th style="width: 15%;">Martes</th>
+                <th style="width: 15%;">Miércoles</th>
+                <th style="width: 15%;">Jueves</th>
+                <th style="width: 15%;">Viernes</th>
+                <th style="width: 15%;">Sábado</th>
+              </tr>
+            </thead>
+            <tbody>
+            @if (calendario.length === 0) {
+              <tr>
+                <td colspan="6" class="text-center py-5">
+                  <div class="empty-state">
+                    <i class="bi bi-journal-x fs-1 text-muted mb-3"></i>
+                    <p class="text-muted">Matriz vacía. Ejecuta el Algoritmo Genético para distribuir la carga horaria del turno.</p>
+                  </div>
+                </td>
+              </tr>
+            } @else {
+              @for (bloque of calendario; track bloque.hora) {
+                @if (bloque.hora === '11:00 - 11:30') {
+                  <tr class="receso-row">
+                    <td class="hora-cell">{{ bloque.hora }}</td>
+                    <td colspan="5" class="text-center text-uppercase fw-bold text-muted receso-text">
+                      <i class="bi bi-cup-hot me-2"></i> RECESO / DESCANSO
+                    </td>
+                  </tr>
+                } @else {
+                  <tr>
+                    <td class="hora-cell">{{ bloque.hora }}</td>
+                    @for (dia of dias; track dia) {
+                      <td class="clase-cell" (click)="abrirEditor(bloque, dia)" [class.editable]="horarioForm.value.tipoFiltro === 'seccion'">
+                        @if (bloque[dia]) {
+                          <div class="clase-card">
+                            <div class="curso-nombre">{{ bloque[dia].curso }}</div>
+                            <div class="clase-detalles">
+                              <span><i class="bi bi-person-badge"></i> {{ bloque[dia].docente }}</span>
+                              <span><i class="bi bi-door-open"></i> {{ bloque[dia].aula }}</span>
+                            </div>
+                          </div>
+                        } @else {
+                          <div class="clase-libre">
+                            <span>Libre</span>
+                          </div>
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Flotante de Edición de Celda -->
+@if (editandoBloque) {
+<div class="editor-overlay" (click)="cerrarEditor()">
+  <div class="editor-modal glass-panel p-4" (click)="$event.stopPropagation()">
+    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+      <h5 class="mb-0 text-white"><i class="bi bi-pencil-square me-2"></i>Editar Bloque ({{ diaEditando | uppercase }} - {{ editandoBloque.hora }})</h5>
+      <button class="btn btn-close btn-close-white" (click)="cerrarEditor()"></button>
+    </div>
+    
+    <div class="mb-3">
+      <label class="form-label text-muted small">Seleccionar Curso y Docente</label>
+      <div class="list-group list-group-flush bg-transparent">
+        @for (opcion of opcionesEdicion; track opcion.docenteId) {
+          <button type="button" 
+                  class="list-group-item list-group-item-action bg-transparent text-white border-secondary d-flex justify-content-between align-items-center"
+                  [class.text-danger]="opcion.conflicto"
+                  [disabled]="opcion.conflicto"
+                  (click)="asignarClase(opcion)">
+            <div>
+              <strong>{{ opcion.curso }}</strong><br>
+              <small>{{ opcion.docente }}</small>
+            </div>
+            @if (opcion.conflicto) {
+              <span class="badge bg-danger rounded-pill">Ocupado</span>
+            } @else {
+              <i class="bi bi-chevron-right text-muted"></i>
+            }
+          </button>
+        }
+      </div>
+    </div>
+    
+    <div class="d-flex justify-content-between mt-4">
+      <button class="btn btn-outline-danger btn-sm" (click)="liberarHora()">
+        <i class="bi bi-eraser me-1"></i> Dejar Libre
+      </button>
+      <button class="btn btn-secondary btn-sm" (click)="cerrarEditor()">Cancelar</button>
+    </div>
+  </div>
+</div>
+}

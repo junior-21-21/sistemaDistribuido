@@ -1,0 +1,222 @@
+/* Premium Dark Theme Variables (Glassmorphism + Red/Black UI) */
+:root {
+  /* Colors */
+  --bg-main: #050505; /* Pure black fallback */
+  --bg-card: rgba(15, 15, 15, 0.7); /* Translucent dark for glassmorphism */
+  --bg-card-hover: rgba(25, 25, 25, 0.8);
+  --bg-sidebar: rgba(10, 10, 10, 0.8);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
+  
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-muted: #64748b;
+  
+  /* Brand Red Palette */
+  --primary-color: #dc2626; /* Crimson Red */
+  --primary-color-hover: #ef4444;
+  --primary-light: #ef4444;
+  --primary-dark: #991b1b;
+  --primary-glow: rgba(220, 38, 38, 0.4);
+  
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+  --info-color: #0ea5e9;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5);
+  --shadow-glow: 0 0 15px var(--primary-glow);
+  
+  /* Animations */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+/* Global resets & typography */
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #050505; /* Near pure black */
+  /* Elegant crimson/red mesh gradient on black */
+  background-image: radial-gradient(at 0% 0%, rgba(220, 38, 38, 0.12) 0px, transparent 50%),
+                    radial-gradient(at 100% 100%, rgba(153, 27, 27, 0.15) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+}
+
+p {
+  line-height: 1.6;
+}
+
+/* Glassmorphism utility classes */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 16px;
+}
+
+/* Base UI Overrides for Bootstrap */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: var(--glass-border) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-smooth);
+}
+
+.btn {
+  border-radius: var(--radius-sm) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.01em;
+  transition: all var(--transition-fast) !important;
+}
+
+.btn-primary {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-color-hover) !important;
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+
+.form-control, .form-select {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 0.6rem 1rem !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px var(--primary-glow) !important;
+}
+
+/* Form labels */
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  letter-spacing: 0.02em;
+}
+
+/* Micro-animations */
+.hover-lift {
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth) !important;
+}
+.hover-lift:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* Tables */
+.table {
+  color: var(--text-primary) !important;
+}
+.table-dark {
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.02);
+  --bs-table-active-bg: rgba(255, 255, 255, 0.04);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-color);
+}
+.table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 1rem !important;
+}
+.table td {
+  padding: 1rem !important;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+/* Modal */
+.modal-content {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-lg) !important;
+}
+.modal-header {
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 1.5rem !important;
+}
+.modal-footer {
+  border-top: 1px solid var(--border-color) !important;
+  padding: 1.5rem !important;
+}
+.modal-body {
+  padding: 1.5rem !important;
+}
+.modal-backdrop.show {
+  opacity: 0.7 !important;
+  backdrop-filter: blur(4px);
+}
+
+/* Badges */
+.badge {
+  font-weight: 500;
+  padding: 0.4em 0.8em;
+  border-radius: 9999px; /* Fully rounded pill style */
+}
+
+/* Text utils */
+.text-muted {
+  color: var(--text-secondary) !important;
+}
+
+/* -------------------------------------
+ *  Fluid Global Animations (Zero-Latency feel)
+ * ------------------------------------- */
+@keyframes routeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.glass-panel, .page-header, .page-container {
+  animation: routeFadeIn 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* Stagger children animations slightly for a cascading load effect */
+.glass-panel:nth-child(1) { animation-delay: 0.05s; opacity: 0; }
+.glass-panel:nth-child(2) { animation-delay: 0.1s; opacity: 0; }
+.glass-panel:nth-child(3) { animation-delay: 0.15s; opacity: 0; }
+

@@ -1,0 +1,47 @@
+.disciplina-container { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+.page-header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
+.subtitle { color: #6b7280; margin: 0.25rem 0 0; font-size: 0.875rem; }
+.btn-primary { background: #3b82f6; color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
+.btn-primary:hover { background: #2563eb; }
+.btn-secondary { background: #f3f4f6; color: #374151; border: none; padding: 0.6rem 1.2rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; }
+.alert-success { background: #d1fae5; color: #065f46; padding: 0.75rem 1rem; border-radius: 0.5rem; margin-bottom: 1rem; }
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.stat-card { background: white; border-radius: 0.75rem; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f3f4f6; }
+.stat-icon { font-size: 1.75rem; }
+.stat-value { font-size: 1.5rem; font-weight: 700; }
+.stat-label { font-size: 0.75rem; color: #6b7280; }
+.table-card { background: white; border-radius: 0.75rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #f3f4f6; overflow: hidden; }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th { background: #f9fafb; padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; border-bottom: 1px solid #e5e7eb; }
+.data-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #f3f4f6; font-size: 0.875rem; }
+.data-table tr:last-child td { border-bottom: none; }
+.desc-cell { max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fecha-cell { color: #6b7280; white-space: nowrap; }
+.empty-row { text-align: center; color: #6b7280; padding: 2rem; }
+.loading { text-align: center; padding: 2rem; color: #6b7280; }
+.badge { display: inline-block; padding: 0.25rem 0.6rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600; }
+.badge-tardanza { background: #fff7ed; color: #c2410c; }
+.badge-leve { background: #fefce8; color: #a16207; }
+.badge-grave { background: #fef2f2; color: #b91c1c; }
+.badge-merito { background: #f0fdf4; color: #166534; }
+.badge-atencion { background: #eff6ff; color: #1d4ed8; }
+.estado-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+.estado-emitido { background: #fef3c7; color: #92400e; }
+.estado-notificado { background: #dbeafe; color: #1e40af; }
+.estado-archivado { background: #f3f4f6; color: #6b7280; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal-card { background: white; border-radius: 1rem; padding: 1.5rem; width: 90%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+.modal-header h2 { font-size: 1.25rem; font-weight: 700; margin: 0; }
+.btn-close { background: none; border: none; font-size: 1.25rem; cursor: pointer; color: #6b7280; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 0.4rem; color: #374151; }
+.form-control { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.5rem; font-size: 0.875rem; box-sizing: border-box; }
+.form-control:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.tipo-option { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.6rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; cursor: pointer; font-size: 0.875rem; }
+.tipo-option:has(input:checked) { border-color: #3b82f6; background: #eff6ff; }
+.error-msg { font-size: 0.75rem; color: #ef4444; }
+.modal-footer { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem; }
+@media (max-width: 768px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }

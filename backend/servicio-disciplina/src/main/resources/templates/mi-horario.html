@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head><meta charset="UTF-8"><title>Mi Horario</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-100 min-h-screen">
+<aside th:replace="~{fragments/nav :: nav}"></aside>
+<div class="ml-64 min-h-screen flex flex-col">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-slate-800">Mi Horario</h1>
+                <p class="text-xs text-slate-400" th:text="${docente != null ? docente.nombreCompleto : ''}"></p>
+            </div>
+        </div>
+    </header>
+    <main class="flex-1 p-6">
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-800 text-slate-300 text-xs uppercase tracking-wide">
+                        <th class="px-5 py-3.5 text-left font-semibold w-10">#</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Curso</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Seccion</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Aula</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Periodo</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Cupo Ocupado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr th:if="${secciones == null or #lists.isEmpty(secciones)}">
+                        <td colspan="6" class="px-5 py-12 text-center text-slate-400">
+                            No tienes secciones asignadas
+                        </td>
+                    </tr>
+                    <tr th:each="s, i : ${secciones}" class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-3.5 text-slate-400 font-mono text-xs" th:text="${i.count}"></td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800" th:text="${s.curso.nombre}"></td>
+                        <td class="px-5 py-3.5 text-center">
+                            <span class="bg-orange-50 text-orange-700 font-bold text-xs px-2 py-1 rounded-lg"
+                                  th:text="${s.nombre}"></span>
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-600"
+                            th:text="${s.aula != null ? s.aula.codigo : '—'}"></td>
+                        <td class="px-5 py-3.5">
+                            <span th:class="${s.periodo.estado == 'ABIERTO'}
+                                  ? 'bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full'
+                                  : 'bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded-full'"
+                                  th:text="${s.periodo.nombre}"></span>
+                        </td>
+                        <td class="px-5 py-3.5 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <div class="w-20 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-indigo-500 rounded-full"
+                                         th:style="'width:' + ${s.cupoMaximo > 0 ? (s.cupoOcupado * 100 / s.cupoMaximo) : 0} + '%'"></div>
+                                </div>
+                                <span class="text-xs text-slate-600 font-medium"
+                                      th:text="${s.cupoOcupado} + ' / ' + ${s.cupoMaximo}"></span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+</body>
+</html>

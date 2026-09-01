@@ -1,0 +1,99 @@
+<div class="dashboard-container">
+  <!-- Elegant Red/Black Welcome Banner -->
+  <div class="welcome-banner glass-panel mb-5 p-4 p-md-5 position-relative overflow-hidden">
+    <div class="banner-glow" [style.background]="roleColor"></div>
+    <div class="position-relative z-1 d-flex justify-content-between align-items-center flex-wrap gap-4">
+      <div>
+        <p class="greeting-text mb-2">{{ greeting }}, <span class="fw-bold text-white">{{ userName }}</span></p>
+        <h1 class="page-title mb-3">Panel de <span [style.color]="roleColor">{{ roleLabel }}</span></h1>
+        <p class="text-muted small mb-0 d-flex align-items-center gap-2">
+          <i class="bi bi-calendar2-event"></i>
+          {{ currentDate }}
+        </p>
+      </div>
+      <div class="d-none d-sm-block text-end">
+        <div class="role-badge-elegant d-inline-flex align-items-center gap-2 px-4 py-2 rounded-pill" 
+             [style.border]="'1px solid ' + roleColor + '55'" 
+             [style.background]="roleColor + '15'">
+          <div class="pulse-dot" [style.background]="roleColor"></div>
+          <span class="fw-bold tracking-wide" [style.color]="roleColor">{{ roleLabel }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="row g-3 mb-5">
+    @for (stat of stats; track stat.label) {
+      <div class="col-6 col-lg-3">
+        <div class="stat-card glass-panel h-100 p-4">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <span class="stat-icon" [style.color]="stat.color" [style.background]="stat.color + '1a'">
+              <i class="bi" [class]="stat.icon"></i>
+            </span>
+            <span class="trend-badge small">{{ stat.trend }}</span>
+          </div>
+          <div class="stat-value mb-1">{{ stat.value }}</div>
+          <div class="stat-label text-muted small">{{ stat.label }}</div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="row g-4">
+    <!-- Actividad Reciente -->
+    <div class="col-lg-7">
+      <div class="glass-panel h-100">
+        <div class="card-header bg-transparent pt-4 pb-0 px-4 border-0 d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 fw-bold"><i class="bi bi-activity text-primary me-2"></i>Actividad Reciente</h5>
+          <span class="text-muted small">Últimas acciones</span>
+        </div>
+        <div class="card-body p-4">
+          <div class="activity-timeline">
+            @for (activity of recentActivity; track activity.texto) {
+              <div class="timeline-item d-flex align-items-start gap-4">
+                <div class="timeline-icon-wrapper flex-shrink-0" 
+                     [class.timeline-success]="activity.tipo === 'success'" 
+                     [class.timeline-warning]="activity.tipo === 'warning'" 
+                     [class.timeline-error]="activity.tipo === 'error'" 
+                     [class.timeline-info]="activity.tipo === 'info'">
+                  @if (activity.tipo === 'success') { <i class="bi bi-check-lg"></i> }
+                  @if (activity.tipo === 'warning') { <i class="bi bi-exclamation-lg"></i> }
+                  @if (activity.tipo === 'error') { <i class="bi bi-x-circle-fill"></i> }
+                  @if (activity.tipo === 'info') { <i class="bi bi-info-lg"></i> }
+                </div>
+                <div class="timeline-content flex-grow-1 pb-4">
+                  <div class="activity-text fw-semibold text-light mb-1">{{ activity.texto }}</div>
+                  <div class="d-flex align-items-center gap-2 text-muted" style="font-size: 0.75rem;">
+                    <i class="bi bi-clock"></i>
+                    {{ activity.time }}
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="col-lg-5">
+      <div class="glass-panel h-100">
+        <div class="card-header bg-transparent pt-4 pb-0 px-4 border-0">
+          <h5 class="mb-0 fw-bold"><i class="bi bi-lightning-fill text-warning me-2"></i>Acciones Rápidas</h5>
+        </div>
+        <div class="card-body p-4 d-grid gap-3">
+          @for (action of quickActions; track action.label) {
+            <a [routerLink]="action.path" class="quick-action-btn text-decoration-none d-flex align-items-center gap-3 px-4 py-3 hover-lift">
+              <span class="quick-action-icon" [style.background]="action.color + '1a'" [style.color]="action.color">
+                <i class="bi" [class]="action.icon"></i>
+              </span>
+              <span class="fw-medium text-light">{{ action.label }}</span>
+              <span class="ms-auto" style="color: rgba(255,255,255,0.2);">→</span>
+            </a>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

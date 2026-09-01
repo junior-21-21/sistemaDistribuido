@@ -1,0 +1,17 @@
+.evaluaciones-container { padding: 2rem; }
+.page-title { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; }
+
+.escala-select {
+  border: none;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  appearance: auto;
+  transition: all 0.2s;
+}
+.escala-ad { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.escala-a  { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.escala-b  { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.escala-c  { background: rgba(239, 68, 68, 0.15);  color: #ef4444; }

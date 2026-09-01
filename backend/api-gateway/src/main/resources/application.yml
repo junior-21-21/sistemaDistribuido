@@ -1,0 +1,71 @@
+server:
+  port: 8080
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+    mime-types: application/json,text/css,application/javascript,text/html
+    min-response-size: 1024
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000ms
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+              - PATCH
+            allowedHeaders: "*"
+      routes:
+        - id: servicio-estudiantes
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/estudiantes/**,/api/auth/**,/api/apoderados/**,/api/documentos/**,/api/derivaciones/**,/api/fichas-medicas/**
+        - id: servicio-cursos
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/cursos/**,/api/horarios/**,/api/docentes/**,/api/tickets/**,/api/aulas/**,/api/niveles/**,/api/grados/**,/api/secciones/**,/api/periodos/**
+        - id: servicio-evaluaciones
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/notas/**,/api/asistencias/**
+        - id: servicio-disciplina
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/disciplina/**,/api/reportes-disciplinarios/**
+        - id: servicio-reportes
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/reportes/**,/api/alertas/**,/api/estadisticas/**,/api/actividades/**
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="es">
+<head><meta charset="UTF-8"><title>Matriculas</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-100 min-h-screen">
+<aside th:replace="~{fragments/nav :: nav}"></aside>
+<div class="ml-64 min-h-screen flex flex-col">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div><h1 class="text-lg font-bold text-slate-800">Matriculas</h1><p class="text-xs text-slate-400">Registro de inscripciones por periodo</p></div>
+        </div>
+        <a href="/matriculas/nuevo" sec:authorize="hasRole('COORDINADOR')" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nueva Matricula
+        </a>
+    </header>
+    <main class="flex-1 p-6">
+        <div th:if="${success}" class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl mb-4 text-sm"><svg class="w-5 h-5 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg><span th:text="${success}"></span></div>
+        <div th:if="${error}" class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-4 text-sm"><svg class="w-5 h-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg><span th:text="${error}"></span></div>
+        <div th:if="${periodoAbierto}" class="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl mb-4 text-sm">
+            <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shrink-0"></span>
+            Matriculas HABILITADAS — Periodo activo: <strong class="ml-1" th:text="${periodoAbierto.nombre}"></strong>
+        </div>
+        <div th:unless="${periodoAbierto}" class="flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-xl mb-4 text-sm">
+            <div class="flex items-center gap-2">
+                <span class="w-2 h-2 bg-amber-500 rounded-full shrink-0"></span>
+                Matriculas BLOQUEADAS — No hay periodo abierto.
+            </div>
+            <a href="/periodos" sec:authorize="hasRole('COORDINADOR')" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">Abrir Periodo</a>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-800 text-slate-300 text-xs uppercase tracking-wide">
+                        <th class="px-5 py-3.5 text-left font-semibold w-10">#</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Estudiante</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Curso</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Sec</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Periodo</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Fecha</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Estado</th>
+                        <th class="px-5 py-3.5 text-right font-semibold" sec:authorize="hasRole('COORDINADOR')">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr th:if="${#lists.isEmpty(matriculas)}"><td colspan="8" class="px-5 py-12 text-center text-slate-400">Sin matriculas registradas</td></tr>
+                    <tr th:each="m, i : ${matriculas}" class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-3.5 text-slate-400 font-mono text-xs" th:text="${i.count}"></td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800" th:text="${m.estudiante.nombreCompleto}"></td>
+                        <td class="px-5 py-3.5 text-slate-600" th:text="${m.seccion.curso.nombre}"></td>
+                        <td class="px-5 py-3.5 text-center"><span class="bg-orange-50 text-orange-700 font-bold text-xs px-2 py-1 rounded-lg" th:text="${m.seccion.nombre}"></span></td>
+                        <td class="px-5 py-3.5 text-slate-600" th:text="${m.seccion.periodo.nombre}"></td>
+                        <td class="px-5 py-3.5 text-slate-500 text-xs" th:text="${m.fechaMatricula}"></td>
+                        <td class="px-5 py-3.5 text-center">
+                            <span th:class="${m.estado == 'MATRICULADO'} ? 'bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full' : 'bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full'" th:text="${m.estado}"></span>
+                        </td>
+                        <td class="px-5 py-3.5 text-right" sec:authorize="hasRole('COORDINADOR')">
+                            <div class="flex items-center justify-end gap-2">
+                                <a th:if="${m.estado == 'MATRICULADO'}"
+                                   th:href="@{/matriculas/retirar/{id}(id=${m.id})}"
+                                   class="flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                                   onclick="return confirm('¿Retirar al estudiante de este curso?')">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"/></svg>
+                                    Retirar
+                                </a>
+                                <a th:href="@{/matriculas/eliminar/{id}(id=${m.id})}"
+                                   class="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                                   onclick="return confirm('¿Eliminar este registro?')">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    Eliminar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+</body>
+</html>

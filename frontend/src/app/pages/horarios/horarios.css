@@ -1,0 +1,221 @@
+.horarios-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.text-primary-glow {
+  color: var(--primary-color);
+  text-shadow: 0 0 12px rgba(220, 38, 38, 0.6);
+}
+
+/* Custom Selects */
+.custom-select {
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23a1a1aa' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e") no-repeat right 0.75rem center/16px 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #e4e4e7;
+}
+.custom-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
+  background-color: rgba(255,255,255,0.05);
+}
+.custom-select option { background: #18181b; color: #fff; }
+
+/* AI Button Glow */
+.btn-ai-glow {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  background: linear-gradient(135deg, var(--primary-color), #7f1d1d);
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+  transition: all 0.3s ease;
+}
+.btn-ai-glow:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+}
+
+/* Calendar Table */
+.custom-calendar-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.custom-calendar-table thead th {
+  background: rgba(255,255,255,0.03);
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.custom-calendar-table thead th:last-child { border-right: none; }
+
+.custom-calendar-table tbody td {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  padding: 0;
+  vertical-align: top;
+  height: 90px;
+  background-color: transparent !important;
+}
+.custom-calendar-table tbody td:last-child { border-right: none; }
+.custom-calendar-table tbody tr:last-child td { border-bottom: none; }
+
+.custom-calendar-table td.hora-cell {
+  background: rgba(255, 255, 255, 0.02);
+  font-weight: 500;
+  color: var(--text-muted);
+  width: 100px;
+  vertical-align: middle;
+  padding-top: 1rem !important;
+}
+
+.custom-calendar-table td.clase-cell {
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.custom-calendar-table td.clase-cell.editable {
+  cursor: pointer;
+}
+.custom-calendar-table td.clase-cell.editable:hover {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.clase-cell.libre {
+  background: rgba(0,0,0,0.2);
+}
+
+.clase-libre {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 80px;
+  color: rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.receso-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+.receso-text {
+  letter-spacing: 3px;
+  padding: 1.5rem !important;
+}
+
+/* Modal de Edición */
+.editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-modal {
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+}
+
+/* Ajustes para Impresión a PDF */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .sidebar, .topbar, .btn, .editor-overlay {
+    display: none !important;
+  }
+  .glass-panel {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+  }
+  .custom-calendar-table {
+    border-color: #000 !important;
+  }
+  .custom-calendar-table th, 
+  .custom-calendar-table td {
+    border-color: #000 !important;
+    color: black !important;
+  }
+  .clase-card {
+    background: transparent !important;
+    border: none !important;
+    color: black !important;
+  }
+  .curso-title, .text-muted, small {
+    color: black !important;
+  }
+  .clase-libre {
+    border: 1px dashed #ccc !important;
+    color: #666 !important;
+  }
+}
+
+/* Clase Card inside Calendar */
+.clase-card {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  padding: 0.5rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+.clase-card:hover {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.curso-nombre {
+  font-weight: 700;
+  color: #fca5a5;
+  font-size: 0.85rem;
+  margin-bottom: 0.3rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.clase-detalles {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: #e4e4e7;
+  margin-top: auto;
+}

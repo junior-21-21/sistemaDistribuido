@@ -1,0 +1,197 @@
+version: '3.9'
+
+# ===================================================
+# Plataforma Académica Distribuida — Docker Compose
+# ===================================================
+# Uso:
+#   docker-compose up -d          (levantar todo)
+#   docker-compose up -d sqlserver (solo la BD primero)
+#   docker-compose logs -f servicio-estudiantes
+# ===================================================
+
+services:
+
+  # ── Base de Datos PostgreSQL ──────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: pad-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/init-postgres-dbs.sh:/docker-entrypoint-initdb.d/init-postgres-dbs.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - pad-network
+
+  # ── API Gateway (Puerto 8080) ─────────────────────
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    container_name: pad-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - servicio-estudiantes
+      - servicio-cursos
+      - servicio-evaluaciones
+      - servicio-disciplina
+      - servicio-reportes
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  # ── Servicio Estudiantes (Puerto 8082) ────────────
+  servicio-estudiantes:
+    build:
+      context: ./backend/servicio-estudiantes
+      dockerfile: Dockerfile
+    container_name: pad-estudiantes
+    ports:
+      - "8082:8082"
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_estudiantes
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+    restart: unless-stopped
+    volumes:
+      - uploads-data:/app/uploads
+
+  # ── Servicio Cursos (Puerto 8083) ─────────────────
+  servicio-cursos:
+    build:
+      context: ./backend/servicio-cursos
+      dockerfile: Dockerfile
+    container_name: pad-cursos
+    ports:
+      - "8083:8083"
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_cursos
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  # ── Servicio Evaluaciones (Puerto 8084) ───────────
+  servicio-evaluaciones:
+    build:
+      context: ./backend/servicio-evaluaciones
+      dockerfile: Dockerfile
+    container_name: pad-evaluaciones
+    ports:
+      - "8084:8084"
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_evaluaciones
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  # ── Servicio Disciplina (Puerto 8081) ─────────────
+  servicio-disciplina:
+    build:
+      context: ./backend/servicio-disciplina
+      dockerfile: Dockerfile
+    container_name: pad-disciplina
+    ports:
+      - "8081:8081"
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_disciplina
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  # ── Servicio Reportes (Puerto 8085) ───────────────
+  servicio-reportes:
+    build:
+      context: ./backend/servicio-reportes
+      dockerfile: Dockerfile
+    container_name: pad-reportes
+    ports:
+      - "8085:8085"
+    environment:
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_reportes
+      ESTUDIANTES_URL: http://servicio-estudiantes:8082
+      EVALUACIONES_URL: http://servicio-evaluaciones:8084
+      DISCIPLINA_URL: http://servicio-disciplina:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      servicio-evaluaciones:
+        condition: service_started
+      servicio-disciplina:
+        condition: service_started
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  # ── Frontend Angular (Puerto 80) ──────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pad-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  # ── pgAdmin (Puerto 5050) ─────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pad-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+    driver: local
+  uploads-data:
+    driver: local
+
+networks:
+  pad-network:
+    driver: bridge

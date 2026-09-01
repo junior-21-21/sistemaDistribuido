@@ -1,0 +1,90 @@
+<div class="tickets-container">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h1 class="page-title mb-1">🛠️ Mantenimiento e Infraestructura</h1>
+      <p class="text-muted small">Reporta problemas de mobiliario, eléctricos o fontanería en tu aula.</p>
+    </div>
+    <button class="btn btn-primary fw-semibold" (click)="abrirModal()">+ Crear Ticket</button>
+  </div>
+
+  @if (error) {
+    <div class="alert alert-warning mb-4">{{ error }}</div>
+  }
+
+  <div class="row g-4">
+    @for (t of tickets; track t.id) {
+      <div class="col-md-6 col-lg-4">
+        <div class="card ticket-card h-100 border-0 p-4">
+          <div class="d-flex justify-content-between mb-3">
+            <span class="badge" [ngClass]="getBadgeClass(t.urgencia)">{{ t.urgencia }}</span>
+            <span class="fw-bold" [style.color]="t.estado === 'RESUELTO' ? '#10b981' : '#f59e0b'">
+              {{ t.estado }}
+            </span>
+          </div>
+          <h5 class="fw-bold mb-1">Aula {{ t.aulaId }} — {{ t.categoria }}</h5>
+          <p class="text-muted small mb-3">{{ t.fechaReporte | date:'medium' }}</p>
+          <p class="mb-3 flex-grow-1">{{ t.descripcion }}</p>
+          
+          @if (t.estado === 'RESUELTO') {
+            <div class="resolution-box p-3 rounded mt-auto">
+              <strong class="d-block small mb-1 text-success">Resolución:</strong>
+              <span class="small">{{ t.notasResolucion }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>
+
+<!-- Modal -->
+@if (showModal) {
+  <div class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-header d-flex justify-content-between align-items-center mb-4">
+        <h5 class="fw-bold mb-0">Nuevo Ticket de Mantenimiento</h5>
+        <button class="btn-close-custom" (click)="cerrarModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Aula / Espacio</label>
+          <select class="form-select" [(ngModel)]="nuevoTicket.aulaId">
+            <option [value]="101">Aula 101 (Primaria)</option>
+            <option [value]="204">Aula 204 (Secundaria)</option>
+            <option [value]="300">Laboratorio Cómputo</option>
+          </select>
+        </div>
+        <div class="row mb-3">
+          <div class="col-6">
+            <label class="form-label">Categoría</label>
+            <select class="form-select" [(ngModel)]="nuevoTicket.categoria">
+              <option value="MOBILIARIO">Mobiliario (Sillas/Mesas)</option>
+              <option value="ELECTRICO">Eléctrico</option>
+              <option value="PLOMERIA">Plomería / Baños</option>
+              <option value="TECNOLOGIA">Tecnología (Proyector/PC)</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Urgencia</label>
+            <select class="form-select" [(ngModel)]="nuevoTicket.urgencia">
+              <option value="BAJA">Baja (No afecta clases)</option>
+              <option value="MEDIA">Media</option>
+              <option value="ALTA">Alta (Afecta el desarrollo)</option>
+              <option value="EMERGENCIA">Emergencia (Peligro)</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label">Descripción del problema</label>
+          <textarea class="form-control" rows="4" [(ngModel)]="nuevoTicket.descripcion" placeholder="Explica detalladamente qué está dañado..."></textarea>
+        </div>
+        <div class="d-flex justify-content-end gap-2">
+          <button class="btn btn-outline-secondary" (click)="cerrarModal()">Cancelar</button>
+          <button class="btn btn-primary" (click)="guardarTicket()" [disabled]="!nuevoTicket.descripcion || submitting">
+            {{ submitting ? 'Enviando...' : 'Enviar Reporte' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
