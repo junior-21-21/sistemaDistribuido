@@ -1,0 +1,48 @@
+// Bootstrap reducido para PAD: solo se compilan los componentes usados por la interfaz.
+@import "bootstrap/scss/functions";
+
+$primary: #2F5BEA; // Azul escolar
+$secondary: #64748B;
+$success: #16A34A;
+$info: #0891B2;
+$warning: #F5A524;
+$danger: #DC2626;
+$light: #F8FAFC;
+$dark: #0F172A;
+$body-bg: #F4F6FB;
+$body-color: #0F172A;
+$border-color: #E3E8F0;
+$border-radius: 0.625rem;
+$card-border-color: #E3E8F0;
+$font-family-sans-serif: "Plus Jakarta Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+$focus-ring-color: rgba(47, 91, 234, 0.18);
+
+@import "bootstrap/scss/variables";
+@import "bootstrap/scss/variables-dark";
+@import "bootstrap/scss/maps";
+@import "bootstrap/scss/mixins";
+@import "bootstrap/scss/utilities";
+
+@import "bootstrap/scss/root";
+@import "bootstrap/scss/reboot";
+@import "bootstrap/scss/type";
+@import "bootstrap/scss/images";
+@import "bootstrap/scss/containers";
+@import "bootstrap/scss/grid";
+@import "bootstrap/scss/tables";
+@import "bootstrap/scss/forms";
+@import "bootstrap/scss/buttons";
+@import "bootstrap/scss/transitions";
+@import "bootstrap/scss/button-group";
+@import "bootstrap/scss/nav";
+@import "bootstrap/scss/navbar";
+@import "bootstrap/scss/card";
+@import "bootstrap/scss/badge";
+@import "bootstrap/scss/alert";
+@import "bootstrap/scss/progress";
+@import "bootstrap/scss/list-group";
+@import "bootstrap/scss/close";
+@import "bootstrap/scss/modal";
+@import "bootstrap/scss/spinners";
+@import "bootstrap/scss/helpers";
+@import "bootstrap/scss/utilities/api";

@@ -1,222 +1,446 @@
-<div class="horarios-container">
-  <!-- Header -->
-  <div class="page-header d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h1 class="page-title mb-1">
-        <i class="bi bi-calendar3 me-2 text-primary-glow"></i>Motor de Horarios Inteligente
-      </h1>
-      <p class="text-muted small mb-0">Generación y optimización de horarios con Inteligencia Artificial.</p>
-    </div>
-  </div>
+<div class="horarios">
+  <app-live-banner [modulos]="['horarios', 'asignaciones-academicas', 'secciones', 'aulas']" (refrescar)="refrescarEnVivo()"></app-live-banner>
 
-  @if (error) {
-    <div class="alert alert-danger mb-4 fw-medium d-flex align-items-center gap-2" style="background: rgba(220,38,38,0.1); border: 1px solid rgba(220,38,38,0.3); color: #fca5a5;">
-      <i class="bi bi-exclamation-triangle-fill"></i> {{ error }}
+  @if (mensaje(); as m) {
+    <div class="aviso" [class]="'aviso ' + m.tipo" role="status">
+      <i class="bi" [class.bi-check-circle-fill]="m.tipo === 'ok'" [class.bi-exclamation-octagon-fill]="m.tipo === 'error'" [class.bi-info-circle-fill]="m.tipo === 'info'"></i>
+      <span>{{ m.texto }}</span>
+      <button type="button" class="cerrar" (click)="mensaje.set(null)" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
     </div>
   }
-  @if (success) {
-    <div class="alert alert-success mb-4 fw-medium d-flex align-items-center gap-2" style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7;">
-      <i class="bi bi-check-circle-fill"></i> {{ success }}
+  @if (noCoinciden() > 0) {
+    <div class="aviso info">
+      <i class="bi bi-clock-history"></i>
+      <span>{{ noCoinciden() }} bloque(s) guardados no encajan en esta jornada (por ejemplo, bloques antiguos de 90 min o con otra hora de inicio). No se muestran y se reemplazarán cuando guardes esa sección.</span>
+      <button type="button" class="cerrar" (click)="noCoinciden.set(0)" aria-label="Ocultar"><i class="bi bi-x-lg"></i></button>
     </div>
   }
+  @if (soloLectura) {
+    <div class="aviso info"><i class="bi bi-eye"></i><span>Vista de consulta: Coordinación Académica genera y publica los horarios.</span></div>
+  }
 
-  <div class="row g-4">
-    <!-- Panel Izquierdo: Controles IA Global -->
-    <div class="col-md-3">
-      <div class="glass-panel p-4 h-100 d-flex flex-column">
-        <h5 class="fw-bold mb-4" style="color: var(--text-primary);">Configuración Global</h5>
-        
-        <form [formGroup]="horarioForm">
-          <div class="mb-3">
-            <label class="form-label small fw-semibold text-muted">Turno a Generar</label>
-            <select class="form-select custom-select" formControlName="turno">
-              <option value="MANANA">Turno Mañana (08:00 - 13:00)</option>
-              <option value="TARDE">Turno Tarde (14:00 - 19:00)</option>
+  <div class="disposicion">
+    <!-- ================= Panel de parámetros ================= -->
+    <aside class="panel no-print">
+      <section class="tarjeta">
+        <h2><span class="paso">1</span>Turno y jornada</h2>
+        <div class="segmentado" role="radiogroup" aria-label="Turno">
+          <button type="button" [class.activo]="turno() === 'MANANA'" (click)="cambiarTurno('MANANA')"><i class="bi bi-sunrise"></i> Mañana</button>
+          <button type="button" [class.activo]="turno() === 'TARDE'" (click)="cambiarTurno('TARDE')"><i class="bi bi-sunset"></i> Tarde</button>
+        </div>
+
+        <div class="campos">
+          <label>Hora de inicio
+            <input type="time" class="form-control" [ngModel]="parametros().horaInicio" (ngModelChange)="actualizarParametro('horaInicio', $event)" [disabled]="soloLectura">
+          </label>
+          <label>Minutos por período
+            <select class="form-select" [ngModel]="parametros().minutosPeriodo" (ngModelChange)="actualizarParametro('minutosPeriodo', +$event)" [disabled]="soloLectura">
+              @for (m of [40, 45, 50, 60]; track m) { <option [ngValue]="m">{{ m }} min</option> }
             </select>
-          </div>
+          </label>
+          <label>Períodos por día
+            <input type="number" min="1" max="12" class="form-control" [ngModel]="parametros().periodosPorDia" (ngModelChange)="actualizarParametro('periodosPorDia', +$event)" [disabled]="soloLectura">
+          </label>
+        </div>
 
-          <div class="mb-4">
-            <label class="form-label small fw-semibold text-muted">Días Laborables</label>
-            <select class="form-select custom-select">
-              <option value="5">Lunes a Viernes</option>
-              <option value="6">Lunes a Sábado</option>
+        <div class="sub">Días de clase</div>
+        <div class="dias">
+          @for (dia of diasDisponibles; track dia) {
+            <button type="button" class="dia" [class.activo]="parametros().dias.includes(dia)" (click)="alternarDia(dia)" [disabled]="soloLectura">
+              {{ etiquetaDia(dia).slice(0, 2) }}
+            </button>
+          }
+        </div>
+
+        <div class="sub">Recreos</div>
+        @for (recreo of parametros().recreos; track $index; let i = $index) {
+          <div class="recreo">
+            <span>Después del</span>
+            <select class="form-select form-select-sm" [ngModel]="recreo.despuesDe" (ngModelChange)="actualizarRecreo(i, 'despuesDe', $event)" [disabled]="soloLectura">
+              @for (n of numerosRecreo(); track n) { <option [ngValue]="n">{{ n }}.º</option> }
             </select>
-          </div>
-
-          <div class="alert mt-auto mb-4 p-3" style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px;">
-            <div class="d-flex align-items-start gap-2">
-              <i class="bi bi-cpu text-primary-glow" style="font-size: 1.2rem; color: #60a5fa;"></i>
-              <div class="small" style="color: #93c5fd;">
-                <strong>Algoritmo Genético:</strong> El motor procesará todos los docentes, aulas y cursos del turno simultáneamente para crear una matriz sin colisiones.
-              </div>
-            </div>
-          </div>
-
-          <button type="button" class="btn btn-primary w-100 fw-bold py-2 mb-2 btn-ai-glow" 
-                  (click)="generarHorarioIA()" [disabled]="generandoIA">
-            @if (generandoIA) {
-              <span class="spinner-border spinner-border-sm me-2"></span> Ejecutando Algoritmo...
-            } @else {
-              <i class="bi bi-magic me-2"></i> Generar Matriz Global
+            <span>por</span>
+            <input type="number" min="5" max="60" class="form-control form-control-sm" [ngModel]="recreo.minutos" (ngModelChange)="actualizarRecreo(i, 'minutos', $event)" [disabled]="soloLectura">
+            <span>min</span>
+            @if (!soloLectura) {
+              <button type="button" class="quitar" (click)="quitarRecreo(i)" aria-label="Quitar recreo"><i class="bi bi-x-lg"></i></button>
             }
+          </div>
+        }
+        @if (!soloLectura) {
+          <button type="button" class="enlace" (click)="agregarRecreo()"><i class="bi bi-plus-circle"></i> Agregar recreo</button>
+        }
+        <p class="resumen-jornada">
+          <i class="bi bi-clock"></i>
+          {{ parametros().horaInicio }} – {{ finJornada() }} · {{ parametros().periodosPorDia }} períodos de {{ parametros().minutosPeriodo }} min
+        </p>
+      </section>
+
+      <section class="tarjeta">
+        <h2><span class="paso">2</span>Reglas</h2>
+        <label class="regla">
+          <span>Máximo del mismo curso por día</span>
+          <input type="number" min="1" [max]="parametros().periodosPorDia" class="form-control form-control-sm" [ngModel]="parametros().maxMismoCursoPorDia" (ngModelChange)="actualizarParametro('maxMismoCursoPorDia', +$event)" [disabled]="soloLectura">
+        </label>
+        <label class="regla">
+          <span>Máximo de horas seguidas por docente <small>(0 = sin límite)</small></span>
+          <input type="number" min="0" [max]="parametros().periodosPorDia" class="form-control form-control-sm" [ngModel]="parametros().maxSeguidosDocente" (ngModelChange)="actualizarParametro('maxSeguidosDocente', +$event)" [disabled]="soloLectura">
+        </label>
+        <label class="interruptor">
+          <input type="checkbox" [ngModel]="parametros().preferirBloquesDobles" (ngModelChange)="actualizarParametro('preferirBloquesDobles', $event)" [disabled]="soloLectura">
+          <span>Preferir bloques dobles <small>(dos períodos seguidos del mismo curso)</small></span>
+        </label>
+        <label class="interruptor">
+          <input type="checkbox" [ngModel]="parametros().aulaFijaPorSeccion" (ngModelChange)="actualizarParametro('aulaFijaPorSeccion', $event)" [disabled]="soloLectura">
+          <span>Cada sección en su propia aula</span>
+        </label>
+        <p class="nota"><i class="bi bi-shield-check"></i> Siempre se evita que un docente o un aula estén en dos lugares a la vez.</p>
+        @if (!soloLectura) {
+          <button type="button" class="enlace" (click)="restablecerParametros()"><i class="bi bi-arrow-counterclockwise"></i> Valores recomendados</button>
+        }
+      </section>
+
+      @if (!soloLectura) {
+        <section class="tarjeta">
+          <h2><span class="paso">3</span>Generar</h2>
+          <div class="segmentado tres">
+            <button type="button" [class.activo]="esAlcance('TURNO')" (click)="alcance.set('TURNO')">Todo el turno</button>
+            <button type="button" [class.activo]="esAlcance('GRADO')" (click)="alcance.set('GRADO')">Un grado</button>
+            <button type="button" [class.activo]="esAlcance('SECCION')" (click)="alcance.set('SECCION')">Una sección</button>
+          </div>
+          @if (esAlcance('GRADO')) {
+            <select class="form-select mt-2" [ngModel]="gradoAlcance()" (ngModelChange)="gradoAlcance.set($event)" aria-label="Grado">
+              <option [ngValue]="null" disabled>Elige el grado…</option>
+              @for (g of gradosTurno(); track g.id) { <option [ngValue]="g.id">{{ g.nombre }}</option> }
+            </select>
+          }
+          @if (esAlcance('SECCION')) {
+            <select class="form-select mt-2" [ngModel]="seccionAlcance() ?? seccionActiva()" (ngModelChange)="seccionAlcance.set($event)" aria-label="Sección">
+              @for (s of seccionesTurno(); track s.id) { <option [ngValue]="s.id">{{ s.gradoNombre }} {{ s.nombre }}</option> }
+            </select>
+          }
+          <button type="button" class="btn btn-primary w-100 mt-3 generar" (click)="generar()" [disabled]="generando() || cargando()">
+            @if (generando()) { <span class="spinner-border spinner-border-sm me-2"></span>Generando… }
+            @else { <i class="bi bi-magic me-2"></i>Generar horario }
           </button>
-        </form>
+          <button type="button" class="btn btn-outline-primary w-100 mt-2" (click)="generar(true)" [disabled]="generando() || cargando()">
+            <i class="bi bi-shuffle me-2"></i>Otra variante
+          </button>
+          <p class="nota"><i class="bi bi-pin-angle"></i> Las clases que fijes con el alfiler se conservan al volver a generar.</p>
+        </section>
+      }
+    </aside>
+
+    <!-- ================= Horario ================= -->
+    <section class="horario">
+      <div class="barra no-print">
+        <div class="segmentado pequeno">
+          <button type="button" [class.activo]="vista() === 'seccion'" (click)="vista.set('seccion')"><i class="bi bi-grid-3x3-gap"></i> Por sección</button>
+          <button type="button" [class.activo]="vista() === 'docente'" (click)="vista.set('docente')"><i class="bi bi-person-video3"></i> Por docente</button>
+        </div>
+        <div class="acciones">
+          @if (!soloLectura) {
+            <button type="button" class="btn btn-light btn-sm" (click)="deshacer()" [disabled]="!puedeDeshacer()" title="Deshacer el último cambio">
+              <i class="bi bi-arrow-counterclockwise"></i> Deshacer
+            </button>
+          }
+          <button type="button" class="btn btn-light btn-sm" (click)="exportarCsv()"><i class="bi bi-filetype-csv"></i> Excel</button>
+          <button type="button" class="btn btn-light btn-sm" (click)="imprimir()"><i class="bi bi-printer"></i> Imprimir</button>
+          @if (!soloLectura) {
+            <button type="button" class="btn btn-outline-primary btn-sm" (click)="guardarActiva()" [disabled]="guardando() || vista() !== 'seccion'">
+              <i class="bi bi-cloud-check"></i> Guardar sección
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="guardarTurno()" [disabled]="guardando()">
+              @if (guardando()) { <span class="spinner-border spinner-border-sm me-1"></span> } @else { <i class="bi bi-cloud-upload"></i> }
+              Guardar todo
+              @if (cambiosSinGuardar().size) { <span class="contador">{{ cambiosSinGuardar().size }}</span> }
+            </button>
+          }
+        </div>
       </div>
-    </div>
 
-    <!-- Panel Derecho: Calendario Visual (Filtro por Docente/Sección) -->
-    <div class="col-md-9">
-      <div class="glass-panel p-4 h-100">
-        <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-          <!-- Toolbar Derecha -->
-        <div class="d-flex flex-column gap-3">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="text-muted small">Selecciona un bloque para editarlo manualmente.</span>
-            
-            @if (calendario.length > 0) {
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-light btn-sm" (click)="exportarExcel()">
-                <i class="bi bi-file-earmark-spreadsheet me-1"></i> Excel
-              </button>
-              <button class="btn btn-outline-light btn-sm" (click)="exportarPDF()">
-                <i class="bi bi-file-earmark-pdf me-1"></i> PDF
-              </button>
-              <button class="btn btn-success btn-sm btn-glow" (click)="guardarMatrizDefinitiva()" [disabled]="guardandoDefinitivo || horarioForm.value.tipoFiltro !== 'seccion'">
-                @if (guardandoDefinitivo) {
-                  <span class="spinner-border spinner-border-sm me-1"></span> Guardando...
-                } @else {
-                  <i class="bi bi-cloud-check me-1"></i> Guardar Horario
-                }
-              </button>
-            </div>
-            }
-          </div>
-          <div class="d-flex gap-2">
-            <div [formGroup]="horarioForm" class="d-flex gap-2">
-              <select class="form-select custom-select form-select-sm w-auto" [disabled]="calendario.length === 0" formControlName="tipoFiltro">
-                <option value="seccion">Filtrar por Sección</option>
-                <option value="docente">Filtrar por Docente</option>
-              </select>
-              
-              @if (horarioForm.value.tipoFiltro === 'docente') {
-                <select class="form-select custom-select form-select-sm w-auto" [disabled]="calendario.length === 0" formControlName="docenteId">
-                  @for (d of docentes; track d.id) {
-                    <option [value]="d.id">{{ d.nombre }}</option>
-                  }
-                </select>
-              } @else {
-                <select class="form-select custom-select form-select-sm w-auto" [disabled]="calendario.length === 0" formControlName="seccionFiltro">
-                  <option value="A">Sección A</option>
-                  <option value="B">Sección B</option>
-                  <option value="C">Sección C</option>
-                </select>
-              }
-            </div>
-          </div>
+      @if (vista() === 'seccion') {
+        <div class="pestanas no-print" role="tablist" aria-label="Secciones del turno">
+          @for (r of resumenSecciones(); track r.seccion.id) {
+            <button type="button" role="tab" class="pestana" [class.activa]="seccionActiva() === r.seccion.id"
+                    [attr.aria-selected]="seccionActiva() === r.seccion.id" (click)="seccionActiva.set(r.seccion.id)">
+              <strong>{{ r.seccion.gradoNombre }} {{ r.seccion.nombre }}</strong>
+              <small [class.completo]="r.total > 0 && r.ubicados >= r.total">{{ r.ubicados }}/{{ r.total }}</small>
+              @if (r.sinGuardar) { <span class="punto-cambio" title="Cambios sin guardar"></span> }
+            </button>
+          } @empty {
+            @if (!cargando()) { <span class="text-muted small">No hay secciones de secundaria en este turno.</span> }
+          }
         </div>
+      } @else {
+        <div class="selector-docente no-print">
+          <label for="docente-vista">Docente</label>
+          <select id="docente-vista" class="form-select" [ngModel]="docenteActivo()" (ngModelChange)="docenteActivo.set($event)">
+            @for (d of docentesConCarga(); track d.id) { <option [ngValue]="d.id">{{ d.nombre }} {{ d.apellido }}</option> }
+          </select>
         </div>
+      }
 
-        <div class="table-responsive">
-          <table class="table custom-calendar-table table-bordered mb-0">
+      <div class="cuerpo">
+        <div class="tabla-scroll">
+          <h3 class="solo-impresion">
+            Horario {{ vista() === 'seccion' ? (seccionActivaInfo()?.gradoNombre + ' ' + seccionActivaInfo()?.nombre) : 'docente' }} · {{ turno() === 'MANANA' ? 'Mañana' : 'Tarde' }} {{ anioEscolar }}
+          </h3>
+          <table class="grilla" [class.arrastrando]="!!arrastre()">
             <thead>
               <tr>
-                <th style="width: 10%;">Hora</th>
-                <th style="width: 15%;">Lunes</th>
-                <th style="width: 15%;">Martes</th>
-                <th style="width: 15%;">Miércoles</th>
-                <th style="width: 15%;">Jueves</th>
-                <th style="width: 15%;">Viernes</th>
-                <th style="width: 15%;">Sábado</th>
+                <th class="col-hora">Hora</th>
+                @for (dia of parametros().dias; track dia) { <th>{{ etiquetaDia(dia) }}</th> }
               </tr>
             </thead>
             <tbody>
-            @if (calendario.length === 0) {
-              <tr>
-                <td colspan="6" class="text-center py-5">
-                  <div class="empty-state">
-                    <i class="bi bi-journal-x fs-1 text-muted mb-3"></i>
-                    <p class="text-muted">Matriz vacía. Ejecuta el Algoritmo Genético para distribuir la carga horaria del turno.</p>
-                  </div>
-                </td>
-              </tr>
-            } @else {
-              @for (bloque of calendario; track bloque.hora) {
-                @if (bloque.hora === '11:00 - 11:30') {
-                  <tr class="receso-row">
-                    <td class="hora-cell">{{ bloque.hora }}</td>
-                    <td colspan="5" class="text-center text-uppercase fw-bold text-muted receso-text">
-                      <i class="bi bi-cup-hot me-2"></i> RECESO / DESCANSO
-                    </td>
-                  </tr>
-                } @else {
-                  <tr>
-                    <td class="hora-cell">{{ bloque.hora }}</td>
-                    @for (dia of dias; track dia) {
-                      <td class="clase-cell" (click)="abrirEditor(bloque, dia)" [class.editable]="horarioForm.value.tipoFiltro === 'seccion'">
-                        @if (bloque[dia]) {
-                          <div class="clase-card">
-                            <div class="curso-nombre">{{ bloque[dia].curso }}</div>
-                            <div class="clase-detalles">
-                              <span><i class="bi bi-person-badge"></i> {{ bloque[dia].docente }}</span>
-                              <span><i class="bi bi-door-open"></i> {{ bloque[dia].aula }}</span>
-                            </div>
-                          </div>
+              @if (cargando()) {
+                <tr><td [attr.colspan]="parametros().dias.length + 1"><div class="skeleton" style="height: 220px"></div></td></tr>
+              } @else {
+                @for (bloque of bloques(); track bloque.inicio) {
+                  @if (bloque.esReceso) {
+                    <tr class="fila-recreo">
+                      <td class="col-hora">{{ bloque.inicio }}<small>{{ bloque.fin }}</small></td>
+                      <td [attr.colspan]="parametros().dias.length"><i class="bi bi-cup-hot"></i> Recreo</td>
+                    </tr>
+                  } @else {
+                    <tr>
+                      <td class="col-hora">{{ bloque.inicio }}<small>{{ bloque.fin }}</small></td>
+                      @for (dia of parametros().dias; track dia) {
+                        @if (vista() === 'seccion') {
+                          @let clase = matrizActiva()?.[dia]?.[bloque.periodo];
+                          <td class="celda" [class]="'celda ' + (estadoDestino(dia, bloque.periodo) ?? '')"
+                              (dragover)="permitirSoltar($event, dia, bloque.periodo)"
+                              (drop)="soltar($event, dia, bloque.periodo)"
+                              (click)="abrirCelda(dia, bloque.periodo)">
+                            @if (clase) {
+                              <div class="clase" [class.fijada]="clase.fijada" [attr.draggable]="!soloLectura"
+                                   (dragstart)="alIniciarArrastreCelda($event, dia, bloque.periodo, clase)" (dragend)="alTerminarArrastre()"
+                                   [attr.title]="clase.curso + ' · ' + clase.docente + ' · ' + clase.aula">
+                                <strong>{{ clase.curso }}</strong>
+                                <span><i class="bi bi-person"></i>{{ clase.docente }}</span>
+                                <span><i class="bi bi-door-open"></i>{{ clase.aula }}</span>
+                                @if (!soloLectura) {
+                                  <button type="button" class="pin" (click)="alternarFijada(dia, bloque.periodo, $event)"
+                                          [attr.aria-label]="clase.fijada ? 'Desfijar clase' : 'Fijar clase'" [title]="clase.fijada ? 'Fijada: se conserva al regenerar' : 'Fijar esta clase'">
+                                    <i class="bi" [class.bi-pin-angle-fill]="clase.fijada" [class.bi-pin-angle]="!clase.fijada"></i>
+                                  </button>
+                                }
+                              </div>
+                            } @else {
+                              <div class="libre">@if (!soloLectura) { <i class="bi bi-plus-lg"></i> } @else { Libre }</div>
+                            }
+                          </td>
                         } @else {
-                          <div class="clase-libre">
-                            <span>Libre</span>
-                          </div>
+                          @let item = matrizDocente()[dia]?.[bloque.periodo];
+                          <td class="celda">
+                            @if (item) {
+                              <div class="clase docente">
+                                <strong>{{ item.clase.curso }}</strong>
+                                <span><i class="bi bi-people"></i>{{ item.seccion }}</span>
+                                <span><i class="bi bi-door-open"></i>{{ item.clase.aula }}</span>
+                              </div>
+                            } @else {
+                              <div class="libre">Libre</div>
+                            }
+                          </td>
                         }
-                      </td>
-                    }
-                  </tr>
+                      }
+                    </tr>
+                  }
                 }
               }
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
+            </tbody>
+          </table>
+        </div>
 
-<!-- Modal Flotante de Edición de Celda -->
-@if (editandoBloque) {
-<div class="editor-overlay" (click)="cerrarEditor()">
-  <div class="editor-modal glass-panel p-4" (click)="$event.stopPropagation()">
-    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
-      <h5 class="mb-0 text-white"><i class="bi bi-pencil-square me-2"></i>Editar Bloque ({{ diaEditando | uppercase }} - {{ editandoBloque.hora }})</h5>
-      <button class="btn btn-close btn-close-white" (click)="cerrarEditor()"></button>
-    </div>
-    
-    <div class="mb-3">
-      <label class="form-label text-muted small">Seleccionar Curso y Docente</label>
-      <div class="list-group list-group-flush bg-transparent">
-        @for (opcion of opcionesEdicion; track opcion.docenteId) {
-          <button type="button" 
-                  class="list-group-item list-group-item-action bg-transparent text-white border-secondary d-flex justify-content-between align-items-center"
-                  [class.text-danger]="opcion.conflicto"
-                  [disabled]="opcion.conflicto"
-                  (click)="asignarClase(opcion)">
-            <div>
-              <strong>{{ opcion.curso }}</strong><br>
-              <small>{{ opcion.docente }}</small>
+        @if (vista() === 'seccion' && seccionActivaInfo()) {
+          <aside class="pendientes no-print">
+            <div class="progreso">
+              <div class="progreso-texto">
+                <strong>{{ progreso().ubicados }}/{{ progreso().total }}</strong> períodos ubicados
+              </div>
+              <div class="barra-progreso"><span [style.width.%]="progreso().porcentaje"></span></div>
             </div>
-            @if (opcion.conflicto) {
-              <span class="badge bg-danger rounded-pill">Ocupado</span>
-            } @else {
-              <i class="bi bi-chevron-right text-muted"></i>
+            <h4>Cursos de {{ seccionActivaInfo()?.gradoNombre }} {{ seccionActivaInfo()?.nombre }}</h4>
+            @if (!soloLectura) { <p class="ayuda">Arrastra un curso a una hora libre, o haz clic en una hora para elegir. Arrastra una clase para moverla o intercambiarla.</p> }
+            @for (c of pendientes(); track c.asignacionId) {
+              <div class="pendiente" [class.completo]="c.faltan === 0" [attr.draggable]="!soloLectura && c.faltan > 0"
+                   (dragstart)="alIniciarArrastrePendiente($event, c)" (dragend)="alTerminarArrastre()">
+                <div>
+                  <strong>{{ c.curso }}</strong>
+                  <small>{{ c.docente }}</small>
+                </div>
+                <span class="cuenta" [class.ok]="c.faltan === 0">
+                  @if (c.faltan === 0) { <i class="bi bi-check-lg"></i> {{ c.periodos }} } @else { faltan {{ c.faltan }} }
+                </span>
+              </div>
+            } @empty {
+              <div class="empty-state"><i class="bi bi-journal-plus"></i><p>Esta sección aún no tiene cursos asignados.</p></div>
             }
-          </button>
+            @if (!soloLectura) {
+              <button type="button" class="enlace" (click)="panelCargaAbierto.set(!panelCargaAbierto())">
+                <i class="bi" [class.bi-chevron-down]="!panelCargaAbierto()" [class.bi-chevron-up]="panelCargaAbierto()"></i> Carga académica (cursos y docentes)
+              </button>
+              <button type="button" class="enlace peligro" (click)="vaciarSeccion()"><i class="bi bi-eraser"></i> Vaciar esta sección</button>
+            }
+          </aside>
         }
       </div>
+    </section>
+  </div>
+
+  <!-- ================= Carga académica ================= -->
+  @if (panelCargaAbierto() && !soloLectura) {
+    <section class="tarjeta carga no-print">
+      <div class="carga-cabecera">
+        <div>
+          <h2>Carga académica {{ anioEscolar }}</h2>
+          <p>Qué curso dicta cada docente en cada sección y cuántos períodos por semana. El generador usa solo esta carga.</p>
+        </div>
+        <span class="badge bg-primary">{{ asignaciones().length }} cargas activas</span>
+      </div>
+      <div class="carga-form">
+        <label>Sección
+          <select class="form-select" [ngModel]="nuevaCargaSeccion()" (ngModelChange)="nuevaCargaSeccion.set($event); nuevaCarga.cursoId = null">
+            @for (s of secciones(); track s.id) { <option [ngValue]="s.id">{{ s.gradoNombre }} {{ s.nombre }}</option> }
+          </select>
+        </label>
+        <label>Curso
+          <select class="form-select" [(ngModel)]="nuevaCarga.cursoId">
+            <option [ngValue]="null" disabled>Elige…</option>
+            @for (c of cursosParaNuevaCarga(); track c.id) { <option [ngValue]="c.id">{{ c.nombre }}</option> }
+          </select>
+        </label>
+        <label>Docente
+          <select class="form-select" [(ngModel)]="nuevaCarga.docenteId">
+            <option [ngValue]="null" disabled>Elige…</option>
+            @for (d of docentes(); track d.id) { <option [ngValue]="d.id">{{ d.nombre }} {{ d.apellido }}</option> }
+          </select>
+        </label>
+        <label>Períodos / semana
+          <input type="number" min="1" max="40" class="form-control" [(ngModel)]="nuevaCarga.periodos">
+        </label>
+        <button type="button" class="btn btn-primary" (click)="guardarCarga()" [disabled]="guardandoCarga()">
+          @if (guardandoCarga()) { <span class="spinner-border spinner-border-sm me-1"></span> } Agregar
+        </button>
+      </div>
+
+      <div class="reparto">
+        <div class="reparto-cabecera">
+          <h3><i class="bi bi-people"></i> Repartir un curso entre varios docentes</h3>
+          <p>Para que un solo profesor no cargue con todas las secciones: elige el curso, las secciones y el equipo; el sistema reparte equilibrando las horas de cada uno.</p>
+        </div>
+        <div class="reparto-paso">
+          <label>Curso
+            <select class="form-select" [ngModel]="repartoCurso()" (ngModelChange)="elegirCursoReparto($event)">
+              <option value="" disabled>Elige el curso…</option>
+              @for (c of cursosReparto(); track c) { <option [value]="c">{{ c }}</option> }
+            </select>
+          </label>
+          <label>Horas por sección
+            <input type="number" min="1" max="40" class="form-control" [ngModel]="repartoHoras()" (ngModelChange)="repartoHoras.set($event); repartoResultado.set(null)">
+          </label>
+        </div>
+        @if (repartoCurso()) {
+          <div class="sub">Secciones</div>
+          <div class="chips-seleccion">
+            @for (item of seccionesReparto(); track item.seccion.id) {
+              <button type="button" class="chip-sel" [class.activo]="repartoSecciones().has(item.seccion.id)" (click)="alternarSeccionReparto(item.seccion.id)"
+                      [title]="item.docentes ? 'Hoy: ' + item.docentes : 'Sin docente'">
+                {{ item.seccion.gradoNombre }} {{ item.seccion.nombre }}
+              </button>
+            }
+          </div>
+          <div class="sub">Docentes que lo dictarán</div>
+          <div class="chips-seleccion">
+            @for (d of docentes(); track d.id) {
+              <button type="button" class="chip-sel docente" [class.activo]="repartoDocentes().has(d.id)" (click)="alternarDocenteReparto(d.id)">
+                {{ d.nombre }} {{ d.apellido.split(' ')[0] }}
+                <small [class.alto]="(cargaPorDocente().get(d.id) ?? 0) > (d.horasSemanalesContratadas || 30)">{{ cargaPorDocente().get(d.id) ?? 0 }}/{{ d.horasSemanalesContratadas || 30 }} h</small>
+              </button>
+            }
+          </div>
+          <div class="reparto-acciones">
+            <button type="button" class="btn btn-outline-primary" (click)="repartir(true)" [disabled]="repartiendo()"><i class="bi bi-eye me-1"></i>Ver propuesta</button>
+            <button type="button" class="btn btn-primary" (click)="repartir(false)" [disabled]="repartiendo() || !repartoResultado() || repartoResultado()!.sinAsignar.length > 0 || repartoResultado()!.aplicado">
+              @if (repartiendo()) { <span class="spinner-border spinner-border-sm me-1"></span> } <i class="bi bi-check2-circle me-1"></i>Aplicar reparto
+            </button>
+          </div>
+          @if (repartoResultado(); as r) {
+            <div class="reparto-resultado">
+              @if (r.sinAsignar.length) {
+                <p class="aviso error"><i class="bi bi-exclamation-octagon-fill"></i><span>El equipo no alcanza para: {{ r.sinAsignar.join(', ') }}. Agrega otro docente o reduce horas.</span></p>
+              }
+              <div class="cargas">
+                @for (c of r.cargas; track c.docenteId) {
+                  <div class="carga-docente">
+                    <strong>{{ c.docente }}</strong>
+                    <span>{{ c.antes }} h → <b [class.alto]="c.despues > c.contratadas">{{ c.despues }} h</b> de {{ c.contratadas }}</span>
+                    <div class="barra-progreso"><span [style.width.%]="(c.despues / c.contratadas) * 100"></span></div>
+                  </div>
+                }
+              </div>
+              <div class="plan">
+                @for (l of r.plan; track l.seccionId) {
+                  <span class="plan-item"><b>{{ l.seccion }}</b> {{ l.horas }} h → {{ l.docente }}</span>
+                }
+              </div>
+              @if (r.aplicado) { <p class="aviso ok"><i class="bi bi-check-circle-fill"></i><span>Reparto aplicado. Los bloques de horario ya existentes pasaron al nuevo docente cuando no había cruce.</span></p> }
+            </div>
+          }
+        }
+      </div>
+      <div class="carga-lista">
+        @for (a of cargasDeSeccionActiva(); track a.id) {
+          <div class="carga-item">
+            <div><strong>{{ a.cursoNombre }}</strong><small>{{ a.docenteNombre }}</small></div>
+            <span class="badge bg-secondary">{{ a.horasSemanales }} / sem</span>
+            <button type="button" class="quitar" (click)="eliminarCarga(a)" aria-label="Quitar carga"><i class="bi bi-trash3"></i></button>
+          </div>
+        }
+      </div>
+    </section>
+  }
+</div>
+
+<!-- ================= Editor de una hora ================= -->
+@if (celdaEditando(); as celda) {
+  <div class="modal-fondo" (click)="cerrarCelda()"></div>
+  <div class="modal-hora" role="dialog" aria-modal="true" aria-label="Elegir clase">
+    <div class="modal-cabecera">
+      <div>
+        <h3>{{ etiquetaDia(celda.dia) }} · {{ bloques().filter(b => !b.esReceso)[celda.periodo]?.inicio }}</h3>
+        <small>{{ seccionActivaInfo()?.gradoNombre }} {{ seccionActivaInfo()?.nombre }}</small>
+      </div>
+      <button type="button" class="cerrar" (click)="cerrarCelda()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
     </div>
-    
-    <div class="d-flex justify-content-between mt-4">
-      <button class="btn btn-outline-danger btn-sm" (click)="liberarHora()">
-        <i class="bi bi-eraser me-1"></i> Dejar Libre
-      </button>
-      <button class="btn btn-secondary btn-sm" (click)="cerrarEditor()">Cancelar</button>
+    <div class="opciones">
+      @for (op of opcionesCelda(); track op.carga.asignacionId) {
+        <button type="button" class="opcion" [class.actual]="op.esActual" [disabled]="!!op.bloqueo" (click)="asignarEnCelda(op.carga)">
+          <div>
+            <strong>{{ op.carga.curso }}</strong>
+            <small>{{ op.carga.docente }}</small>
+          </div>
+          @if (op.bloqueo) {
+            <span class="etiqueta mala">{{ op.bloqueo }}</span>
+          } @else if (op.esActual) {
+            <span class="etiqueta">Actual</span>
+          } @else if (op.aviso) {
+            <span class="etiqueta advertencia">{{ op.aviso }}</span>
+          } @else {
+            <span class="etiqueta buena">faltan {{ op.faltan }}</span>
+          }
+        </button>
+      } @empty {
+        <div class="empty-state"><p>Agrega cursos a la carga académica de esta sección.</p></div>
+      }
+    </div>
+    <div class="modal-pie">
+      @if (claseCeldaEditando()) {
+        <button type="button" class="btn btn-outline-danger btn-sm" (click)="liberarCelda()"><i class="bi bi-eraser"></i> Dejar libre</button>
+      }
+      <button type="button" class="btn btn-light btn-sm ms-auto" (click)="cerrarCelda()">Cancelar</button>
     </div>
   </div>
-</div>
 }

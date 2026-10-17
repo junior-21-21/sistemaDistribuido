@@ -1,64 +1,90 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { Router, RouterLink, NavigationEnd } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { filter } from 'rxjs';
-
-interface MenuItem {
-  path: string;
-  label: string;
-  icon: string;
-  roles: string[];
-}
+import { AuthService } from '../../core/services/auth.service';
+import { LayoutService } from '../../core/services/layout.service';
+import { RealtimeService } from '../../core/realtime/realtime.service';
+import { ModulosColegioService } from '../../core/services/modulos-colegio.service';
+import { GRUPOS, NavItem, ROL_ETIQUETA, iniciales, itemsParaRoles } from '../../core/navigation';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './sidebar.html',
   styleUrl: './sidebar.css'
 })
 export class Sidebar implements OnInit {
-  authService = inject(AuthService);
-  router = inject(Router);
-  
-  allMenuItems: MenuItem[] = [
-    { path: '/dashboard', icon: 'bi-house-door', label: 'Inicio', roles: ['DIRECTOR', 'SECRETARIA', 'DOCENTE', 'ENFERMERA'] },
-    { path: '/personal', icon: 'bi-shield-lock', label: 'Personal', roles: ['DIRECTOR'] },
-    { path: '/secciones', icon: 'bi-grid', label: 'Secciones', roles: ['DIRECTOR', 'SECRETARIA'] },
-    { path: '/estudiantes', icon: 'bi-people', label: 'Matrículas', roles: ['DIRECTOR', 'SECRETARIA'] },
-    { path: '/horarios', icon: 'bi-calendar3', label: 'Horarios', roles: ['DIRECTOR', 'SECRETARIA'] },
-    { path: '/mis-clases', icon: 'bi-journal-bookmark', label: 'Clases', roles: ['DOCENTE'] },
-    { path: '/evaluaciones', icon: 'bi-clipboard-check', label: 'Notas', roles: ['DOCENTE'] },
-    { path: '/disciplina', icon: 'bi-exclamation-triangle', label: 'Disciplina', roles: ['DOCENTE', 'DIRECTOR'] },
-    { path: '/tickets', icon: 'bi-tools', label: 'Tickets', roles: ['DOCENTE', 'DIRECTOR'] },
-    { path: '/fichas-medicas', icon: 'bi-hospital', label: 'Fichas', roles: ['ENFERMERA'] },
-    { path: '/topico', icon: 'bi-bandaid', label: 'Tópico', roles: ['ENFERMERA'] },
-  ];
+  readonly authService = inject(AuthService);
+  readonly layout = inject(LayoutService);
+  private readonly realtime = inject(RealtimeService);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly modulos = inject(ModulosColegioService);
 
-  menuItems: MenuItem[] = [];
-  activeIndex = 0;
+  /** Pantallas según los roles de la persona y los módulos que el colegio tiene habilitados. */
+  private readonly items = computed<NavItem[]>(() =>
+    itemsParaRoles(this.authService.getRoles(), this.modulos.estado()));
+  /** Cambios en vivo no vistos por pantalla (punto con número en el menú). */
+  readonly pendientes = signal<Record<string, number>>({});
 
-  ngOnInit() {
-    const role = this.authService.getRole() || '';
-    
-    // Limitamos a un máximo de ~6 para diseño liquid nav, o los ajustamos dinámicamente
-    this.menuItems = this.allMenuItems.filter(item => item.roles.includes(role)).slice(0, 7);
-    
-    this.updateActiveIndex(this.router.url);
+  readonly grupos = computed(() =>
+    GRUPOS.map(grupo => ({ nombre: grupo, items: this.items().filter(item => item.grupo === grupo) }))
+      .filter(grupo => grupo.items.length > 0));
+
+  readonly usuario = this.authService.currentUser;
+  readonly iniciales = computed(() => iniciales(this.usuario()?.name));
+  readonly rolPrincipal = computed(() => {
+    const roles = this.usuario()?.roles ?? [];
+    return roles.map(rol => ROL_ETIQUETA[rol] ?? rol).join(' · ');
+  });
+
+  ngOnInit(): void {
+    this.modulos.cargar();
 
     this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).subscribe((event: any) => {
-      this.updateActiveIndex(event.urlAfterRedirects);
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(event => {
+      this.limpiar(event.urlAfterRedirects);
+      this.layout.menuMovilAbierto.set(false);
+    });
+
+    this.realtime.cambios$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(evento => {
+      if (evento.propio || evento.modulo === 'ingresos') return;
+      const actual = this.router.url;
+      const afectados = this.items().filter(item => item.modulos?.includes(evento.modulo) && !actual.startsWith(item.path));
+      if (afectados.length === 0) return;
+      this.pendientes.update(mapa => {
+        const copia = { ...mapa };
+        for (const item of afectados) copia[item.path] = (copia[item.path] ?? 0) + 1;
+        return copia;
+      });
     });
   }
 
-  updateActiveIndex(url: string) {
-    const idx = this.menuItems.findIndex(item => url.includes(item.path));
-    if (idx !== -1) {
-      this.activeIndex = idx;
-    } else {
-      this.activeIndex = 0;
-    }
+  /** Color del separador de cuaderno de cada grupo del menú. */
+  claseGrupo(nombre: string): string {
+    return ({
+      'Académico': 'academico',
+      'Convivencia y bienestar': 'convivencia',
+      'Secretaría': 'secretaria',
+      'Gestión': 'gestion'
+    } as Record<string, string>)[nombre] ?? 'inicio';
+  }
+
+  cerrarMovil(): void {
+    this.layout.menuMovilAbierto.set(false);
+  }
+
+  private limpiar(url: string): void {
+    const clave = Object.keys(this.pendientes()).find(path => url.startsWith(path));
+    if (!clave) return;
+    this.pendientes.update(mapa => {
+      const copia = { ...mapa };
+      delete copia[clave];
+      return copia;
+    });
   }
 }

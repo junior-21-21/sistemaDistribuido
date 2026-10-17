@@ -1,6 +1,6 @@
 {
-  "name": "frontend",
-  "short_name": "frontend",
+  "name": "PAD · Plataforma Académica I.E.P. Huamanga",
+  "short_name": "PAD",
   "display": "standalone",
   "scope": "./",
   "start_url": "./",
@@ -53,5 +53,8 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ]
+  ],
+  "theme_color": "#2f5bea",
+  "background_color": "#f4f6fb",
+  "lang": "es"
 }

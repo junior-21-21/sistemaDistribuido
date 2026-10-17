@@ -1,0 +1,110 @@
+<section class="page-container nominas">
+  <header class="page-header mb-4 no-imprimir">
+    <span class="eyebrow"><i class="bi bi-journal-bookmark"></i> Secretaría y Dirección</span>
+    <h1>Nóminas de matrícula</h1>
+    <p>Secretaría revisa e imprime la nómina de cada sección. Dirección la aprueba y firma al concluir la matrícula;
+      si después cambia el número de estudiantes, hay que volver a aprobarla.</p>
+  </header>
+
+  <div class="nomina-barra no-imprimir mb-3">
+    <div>
+      <label class="form-label" for="anio">Año escolar</label>
+      <select id="anio" class="form-select" [ngModel]="anio()" (ngModelChange)="cambiarAnio($event)">
+        @for (a of anios; track a) { <option [ngValue]="a">{{ a }}</option> }
+      </select>
+    </div>
+    <div class="kpis">
+      <div><strong>{{ resumen().secciones }}</strong><span>secciones</span></div>
+      <div><strong>{{ resumen().estudiantes }}</strong><span>estudiantes</span></div>
+      <div class="ok"><strong>{{ resumen().aprobadas }}</strong><span>aprobadas</span></div>
+      <div class="warn"><strong>{{ resumen().porAprobar }}</strong><span>por aprobar</span></div>
+    </div>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger">{{ error() }}</div> }
+
+  <div class="layout">
+    <div class="glass-panel lista no-imprimir">
+      @for (f of filas(); track f.seccion.id) {
+        <button type="button" class="fila" [class.activa]="seleccion()?.seccion?.id === f.seccion.id" (click)="abrir(f)">
+          <span class="nombre">
+            <strong>{{ f.etiqueta }}</strong>
+            <small>{{ f.seccion.nivelNombre }} · {{ f.seccion.turno === 'TARDE' ? 'Tarde' : 'Mañana' }}</small>
+          </span>
+          <span class="cuenta">{{ f.estado?.estudiantes ?? 0 }}</span>
+          @switch (situacion(f.estado)) {
+            @case ('aprobada') { <span class="estado-chip" data-estado="APROBADA"><i class="bi bi-patch-check"></i> Aprobada</span> }
+            @case ('desactualizada') { <span class="estado-chip" data-estado="RECHAZADA"><i class="bi bi-exclamation-triangle"></i> Cambió</span> }
+            @case ('pendiente') { <span class="estado-chip" data-estado="PENDIENTE">Por aprobar</span> }
+            @default { <span class="estado-chip vacia">Sin matrícula</span> }
+          }
+        </button>
+      } @empty {
+        <p class="p-4 text-muted mb-0">{{ cargando() ? 'Cargando secciones…' : 'No hay secciones activas para este año.' }}</p>
+      }
+    </div>
+
+    <div class="glass-panel hoja">
+      @if (seleccion(); as s) {
+        <header class="hoja-cabecera">
+          <div>
+            <span class="eyebrow">Nómina de matrícula {{ anio() }}</span>
+            <h2>{{ s.etiqueta }}</h2>
+            <p class="meta">{{ s.seccion.nivelNombre }} · Turno {{ s.seccion.turno === 'TARDE' ? 'tarde' : 'mañana' }} ·
+              Tutor(a): {{ s.seccion.docenteTutorNombre ?? 'sin asignar' }}</p>
+          </div>
+          <div class="acciones no-imprimir">
+            <button class="btn btn-outline-primary btn-sm" type="button" (click)="imprimir()" [disabled]="!detalle().length"><i class="bi bi-printer"></i> Imprimir</button>
+            <button class="btn btn-outline-primary btn-sm" type="button" (click)="descargar()" [disabled]="!detalle().length"><i class="bi bi-filetype-pdf"></i> PDF</button>
+          </div>
+        </header>
+
+        @switch (situacion(s.estado)) {
+          @case ('aprobada') {
+            <div class="sello ok"><i class="bi bi-patch-check-fill"></i> Aprobada por {{ s.estado?.aprobadaPor }} el {{ s.estado?.fechaAprobacion | date:'dd/MM/yyyy HH:mm' }}
+              @if (s.estado?.observacion) { · {{ s.estado?.observacion }} }</div>
+          }
+          @case ('desactualizada') {
+            <div class="sello warn"><i class="bi bi-exclamation-triangle-fill"></i> Se aprobó con {{ s.estado?.totalAprobado }} estudiantes y ahora hay
+              {{ s.estado?.estudiantes }}. Dirección debe aprobarla de nuevo.</div>
+          }
+          @case ('pendiente') {
+            <div class="sello pendiente"><i class="bi bi-hourglass-split"></i> Pendiente de aprobación de Dirección.</div>
+          }
+        }
+
+        <table class="table tabla-nomina">
+          <thead><tr><th class="num">N.º</th><th>DNI</th><th>Apellidos</th><th>Nombres</th></tr></thead>
+          <tbody>
+            @for (f of detalle(); track f.estudianteId) {
+              <tr><td class="num">{{ f.numero }}</td><td class="dni">{{ f.dni }}</td><td><strong>{{ f.apellidos }}</strong></td><td>{{ f.nombres }}</td></tr>
+            } @empty {
+              <tr><td colspan="4" class="text-center text-muted py-4">{{ cargandoDetalle() ? 'Cargando…' : 'La sección no tiene estudiantes activos.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="firma solo-imprimir">
+          <div><span></span>Director(a)</div>
+          <div><span></span>Secretaría</div>
+        </div>
+
+        @if (esDirector && detalle().length && situacion(s.estado) !== 'aprobada') {
+          <footer class="aprobar no-imprimir">
+            <input class="form-control" maxlength="300" placeholder="Observación (opcional)" [(ngModel)]="observacion">
+            <button class="btn btn-primary" type="button" [disabled]="aprobando()" (click)="aprobar()">
+              <i class="bi bi-pen"></i> {{ aprobando() ? 'Aprobando…' : 'Aprobar nómina' }}
+            </button>
+          </footer>
+        } @else if (!esDirector && situacion(s.estado) === 'pendiente') {
+          <p class="ayuda no-imprimir">Revisa los datos e imprime la nómina para la firma de Dirección.</p>
+        }
+      } @else {
+        <div class="vacio">
+          <i class="bi bi-journal-bookmark"></i>
+          <p>Elige una sección para ver su nómina.</p>
+        </div>
+      }
+    </div>
+  </div>
+</section>

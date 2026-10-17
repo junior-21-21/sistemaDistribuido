@@ -1,128 +1,321 @@
 <div class="disciplina-container">
-  <!-- Header -->
-  <div class="page-header">
+  <header class="page-header">
     <div>
-      <h1><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i> Disciplina — Papeletas Digitales</h1>
-      <p class="subtitle">Reemplaza las papeletas físicas. Registro inmediato de incidencias y méritos.</p>
+      <span class="eyebrow">Convivencia y bienestar</span>
+      <h1 class="page-title">Convivencia escolar</h1>
+      <p class="subtitle">Papeletas digitales de incidencias y méritos: se registran en segundos y la familia recibe el aviso.</p>
     </div>
-    <button class="btn-primary" (click)="abrirModal()"><i class="bi bi-plus-lg me-1"></i> Nueva Papeleta</button>
-  </div>
+  </header>
 
-  <!-- Success message -->
   @if (successMessage) {
-    <div class="alert-success"><i class="bi bi-check-circle-fill me-2"></i> {{ successMessage }}</div>
+    <div class="aviso-ok"><i class="bi bi-check-circle-fill"></i> {{ successMessage }}</div>
+  }
+  @if (errorMessage) {
+    <div class="aviso-error"><i class="bi bi-exclamation-circle-fill"></i> {{ errorMessage }}</div>
   }
 
-  <!-- Stats -->
-  <div class="stats-row">
-    <div class="stat-card stat-orange">
-      <span class="stat-icon"><i class="bi bi-clock-history"></i></span>
-      <div>
-        <div class="stat-value">{{ getTardanzas() }}</div>
-        <div class="stat-label">Tardanzas</div>
-      </div>
-    </div>
-    <div class="stat-card stat-red">
-      <span class="stat-icon"><i class="bi bi-shield-fill-exclamation text-danger"></i></span>
-      <div>
-        <div class="stat-value">{{ getFaltasGraves() }}</div>
-        <div class="stat-label">Faltas Graves</div>
-      </div>
-    </div>
-    <div class="stat-card stat-green">
-      <span class="stat-icon"><i class="bi bi-star-fill text-success"></i></span>
-      <div>
-        <div class="stat-value">{{ getMeritos() }}</div>
-        <div class="stat-label">Méritos</div>
-      </div>
-    </div>
-    <div class="stat-card stat-blue">
-      <span class="stat-icon"><i class="bi bi-file-earmark-text"></i></span>
-      <div>
-        <div class="stat-value">{{ reportes.length }}</div>
-        <div class="stat-label">Total Reportes</div>
+  <!-- ============ VISTA 1: CAJONES DE GRADOS ============ -->
+  <div *ngIf="vistaActual === 'grados' && !loading">
+    <app-continuar-seccion (continuar)="continuarUltima($event)"></app-continuar-seccion>
+    <div class="row g-4 mb-4">
+      <div *ngFor="let grado of gradosDisponibles" class="col-md-6 col-lg-4">
+        <div class="glass-panel p-4 h-100 grado-card-nav" (click)="navegarAGrado(grado)" style="cursor: pointer; border-left: 4px solid var(--primary-color);">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h3 class="h4 fw-bold text-white mb-0">{{ grado.nombre }}</h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary opacity-75">Secundaria</span>
+          </div>
+          <p class="text-muted small mb-3">Gestionar papeletas de los alumnos de {{ grado.nombre }}.</p>
+          <div class="d-flex justify-content-between align-items-center mt-auto">
+            <span class="text-white-50 small"><i class="bi bi-grid-1x2 me-1"></i> Ver secciones</span>
+            <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Table -->
-  @if (loading) {
-    <div class="loading">Cargando reportes...</div>
-  } @else {
-    <div class="table-card">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Estudiante</th>
-            <th>Tipo</th>
-            <th>Descripción</th>
-            <th>Estado</th>
-            <th>Fecha</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (r of reportes; track r.id) {
-            <tr>
-              <td><strong>{{ r.nombreEstudiante ?? 'Estudiante #' + r.estudianteId }}</strong></td>
-              <td><span class="badge" [class]="tipoBadgeClass(r.tipo)">{{ tipoLabel(r.tipo) }}</span></td>
-              <td class="desc-cell">{{ r.descripcion }}</td>
-              <td><span class="estado-badge estado-{{ (r.estado ?? 'EMITIDO').toLowerCase() }}">{{ r.estado ?? 'EMITIDO' }}</span></td>
-              <td class="fecha-cell">{{ r.fechaReporte | date:'dd/MM/yyyy HH:mm' }}</td>
-            </tr>
-          } @empty {
-            <tr><td colspan="5" class="empty-row">No hay reportes disciplinarios registrados.</td></tr>
-          }
-        </tbody>
-      </table>
-    </div>
-  }
+  <!-- ============ VISTA 2: SECCIONES DE UN GRADO ============ -->
+  <div *ngIf="vistaActual === 'secciones'">
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverAGrados()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a los grados
+    </button>
+    <h4 class="text-white mb-4"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Secciones de {{ gradoNavegacion?.nombre }}</h4>
 
-  <!-- Modal Nueva Papeleta -->
-  @if (showModal) {
-    <div class="modal-overlay" (click)="cerrarModal()">
-      <div class="modal-card" (click)="$event.stopPropagation()">
-        <div class="modal-header">
-          <h2>Nueva Papeleta Digital</h2>
-          <button class="btn-close" (click)="cerrarModal()">✕</button>
-        </div>
-        <form [formGroup]="reporteForm" (ngSubmit)="guardarReporte()">
-          <div class="form-group">
-            <label>Estudiante *</label>
-            <select formControlName="estudianteId" class="form-control">
-              <option value="null" disabled>Seleccionar estudiante...</option>
-              @for (est of demoEstudiantes; track est.id) {
-                <option [value]="est.id">{{ est.nombre }}</option>
-              }
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Tipo de Incidencia *</label>
-            <div class="tipo-grid">
-              @for (tipo of tiposReporte; track tipo.value) {
-                <label class="tipo-option">
-                  <input type="radio" formControlName="tipo" [value]="tipo.value">
-                  {{ tipo.label }}
-                </label>
-              }
+    <!-- Turno Manana -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesMananaNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-manana-est"><i class="bi bi-sun-fill me-2"></i>Turno Mañana</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesMananaNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-manana">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
             </div>
           </div>
-          <div class="form-group">
-            <label>Descripción *</label>
-            <textarea formControlName="descripcion" class="form-control" rows="3"
-              placeholder="Descripción detallada de la incidencia..."></textarea>
-            @if (reporteForm.get('descripcion')?.touched && reporteForm.get('descripcion')?.invalid) {
-              <span class="error-msg">Mínimo 10 caracteres</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turno Tarde -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesTardeNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-tarde-est"><i class="bi bi-moon-fill me-2"></i>Turno Tarde</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesTardeNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-tarde">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 3: CONVIVENCIA DE LA SECCIÓN ============ -->
+  <div *ngIf="vistaActual === 'gestor'" class="gestor">
+    <div class="gestor-barra">
+      <button class="btn btn-outline-light btn-sm" (click)="volverASecciones()">
+        <i class="bi bi-arrow-left me-2"></i> Volver a secciones de {{ gradoNavegacion?.nombre }}
+      </button>
+      @if (puedeCrear) {
+        <button type="button" class="btn-nueva" (click)="abrirModal()"><i class="bi bi-plus-lg"></i> Nueva papeleta</button>
+      }
+    </div>
+
+    <!-- Pizarra de la sección -->
+    <section class="pizarra-aula">
+      <div class="pizarra-aula-marco">
+        <div class="pizarra-info">
+          <p class="tiza-dia">Cuaderno de convivencia</p>
+          <h2 class="tiza-curso">{{ nombreSeccion }}</h2>
+          <div class="tiza-chips">
+            <span class="chip-tiza"><i class="bi bi-sun-fill"></i>{{ turnoSeccion }}</span>
+            <span class="chip-tiza"><i class="bi bi-people-fill"></i>{{ estudiantesSeccion.length }} estudiantes</span>
+            <span class="chip-tiza"><i class="bi bi-journal-text"></i>{{ delMes }} papeletas este mes</span>
+            @if (pendientes) { <span class="chip-tiza chip-alerta"><i class="bi bi-bell-fill"></i>{{ pendientes }} sin notificar</span> }
+          </div>
+        </div>
+        <label class="buscador" for="buscar-papeleta">
+          <i class="bi bi-search"></i>
+          <input id="buscar-papeleta" type="search" [(ngModel)]="busqueda" placeholder="Buscar estudiante o motivo…" autocomplete="off">
+        </label>
+        <span class="tiza" aria-hidden="true"></span><span class="mota" aria-hidden="true"></span>
+      </div>
+    </section>
+    @if (esDocenteRestringido) { <p class="nota-carga"><i class="bi bi-info-circle"></i> Solo ves las secciones de tu carga académica.</p> }
+
+    <!-- Contadores por tipo (también filtran) -->
+    <section class="contadores">
+      @for (t of tiposReporte; track t.value) {
+        <button type="button" class="contador" [attr.data-tipo]="t.color" [class.activo]="filtroTipo === t.value" (click)="alternarTipo(t.value)"
+                [attr.aria-pressed]="filtroTipo === t.value" title="Ver solo: {{ t.plural }}">
+          <span class="contador-icono"><i class="bi" [ngClass]="t.icon"></i></span>
+          <span><strong>{{ contarTipo(t.value) }}</strong><small>{{ t.plural }}</small></span>
+        </button>
+      }
+    </section>
+
+    @if (filtroTipo || filtroEstudiante || busqueda) {
+      <div class="filtro-activo">
+        Mostrando {{ reportesFiltrados.length }} de {{ reportes.length }} papeletas
+        @if (filtroEstudiante) { de <strong>{{ nombreEstudiante(filtroEstudiante) }}</strong> }
+        <button type="button" (click)="limpiarFiltros()">Quitar filtros <i class="bi bi-x"></i></button>
+      </div>
+    }
+
+    @if (loading) {
+      <div class="cargando"><span class="spinner-border spinner-border-sm"></span> Cargando papeletas…</div>
+    } @else {
+      <div class="columnas">
+        <!-- Línea de tiempo -->
+        <section class="linea-tiempo">
+          @for (grupo of grupos; track grupo.dia) {
+            <h3 class="dia">{{ grupo.dia }}</h3>
+            @for (r of grupo.items; track r.id) {
+              <article class="papeleta" [attr.data-tipo]="tipoInfo(r.tipo).color">
+                <span class="papeleta-icono"><i class="bi" [ngClass]="tipoInfo(r.tipo).icon"></i></span>
+                <div class="papeleta-cuerpo">
+                  <div class="papeleta-cabeza">
+                    <button type="button" class="estudiante" (click)="alternarEstudiante(r.estudianteId)" title="Ver todas sus papeletas">
+                      <span class="mini-avatar">{{ iniciales(nombreDe(r)) }}</span>{{ nombreDe(r) }}
+                    </button>
+                    <span class="tipo">{{ tipoLabel(r.tipo) }}</span>
+                    <span class="estado" [attr.data-estado]="r.estado ?? 'EMITIDO'">
+                      {{ (r.estado ?? 'EMITIDO') === 'EMITIDO' ? 'Sin notificar' : (r.estado === 'NOTIFICADO' ? 'Familia notificada' : 'Archivada') }}
+                    </span>
+                  </div>
+                  <p class="descripcion">{{ r.descripcion }}</p>
+                  @if (r.observaciones) { <p class="observacion"><i class="bi bi-chat-left-text"></i> {{ r.observaciones }}</p> }
+                  @if (aplicaProtocolo(r)) {
+                    <div class="protocolo" [class.completo]="pasosProtocolo(r) === 4">
+                      <span class="protocolo-titulo"><i class="bi bi-shield-check"></i> Protocolo {{ pasosProtocolo(r) }}/4</span>
+                      <span [class.hecho]="r.codigoSiseve">SíseVe{{ r.codigoSiseve ? ' ' + r.codigoSiseve : '' }}</span>
+                      <span [class.hecho]="r.citacionApoderado">Citación{{ r.citacionApoderado ? ' ' + (r.citacionApoderado | date:'dd/MM HH:mm') : '' }}</span>
+                      <span [class.hecho]="r.medidasProteccion">Medidas</span>
+                      <span [class.hecho]="r.derivacionExterna">Derivación{{ r.derivacionExterna ? ': ' + nombreDerivacion(r.derivacionExterna) : '' }}</span>
+                      @if (puedeProtocolo) {
+                        <button type="button" (click)="abrirProtocolo(r)"><i class="bi bi-pencil-square"></i> Completar</button>
+                      }
+                    </div>
+                  }
+                  <div class="papeleta-pie">
+                    <span><i class="bi bi-clock"></i> {{ hora(r.fechaReporte) }}</span>
+                    @if (r.registradoPor) { <span><i class="bi bi-person"></i> {{ r.registradoPor }}</span> }
+                    @if (puedeGestionarEstado && (r.estado ?? 'EMITIDO') !== 'ARCHIVADO') {
+                      <span class="acciones">
+                        @if ((r.estado ?? 'EMITIDO') === 'EMITIDO') {
+                          <button type="button" (click)="cambiarEstado(r, 'NOTIFICADO')" [disabled]="actualizandoId === r.id"><i class="bi bi-send-check"></i> Marcar notificada</button>
+                        }
+                        <button type="button" (click)="cambiarEstado(r, 'ARCHIVADO')" [disabled]="actualizandoId === r.id"><i class="bi bi-archive"></i> Archivar</button>
+                      </span>
+                    }
+                  </div>
+                </div>
+              </article>
+            }
+          } @empty {
+            <div class="vacio">
+              <i class="bi bi-emoji-smile"></i>
+              <p>{{ reportes.length ? 'Ninguna papeleta coincide con el filtro.' : 'Esta sección no tiene papeletas registradas.' }}</p>
+            </div>
+          }
+          @if (reportesFiltrados.length > limite) {
+            <button type="button" class="ver-mas" (click)="limite = limite + 25">Ver más papeletas ({{ reportesFiltrados.length - limite }} restantes)</button>
+          }
+        </section>
+
+        <!-- Panel lateral -->
+        <aside class="lateral">
+          <section class="panel">
+            <h3><i class="bi bi-heart-pulse-fill"></i> Estudiantes a acompañar</h3>
+            <p class="panel-ayuda">Más incidencias en la sección (una falta grave cuenta como tres).</p>
+            @for (a of aAcompanar; track a.id) {
+              <button type="button" class="fila-alumno" [class.activo]="filtroEstudiante === a.id" (click)="alternarEstudiante(a.id)">
+                <span class="mini-avatar">{{ iniciales(a.nombre) }}</span>
+                <span class="fila-datos">
+                  <strong>{{ a.nombre }}</strong>
+                  <small>{{ a.detalle }}</small>
+                  <span class="barra"><span [style.width.%]="a.puntos * 100 / maxPuntos"></span></span>
+                </span>
+              </button>
+            } @empty { <p class="panel-vacio">Sin incidencias negativas.</p> }
+          </section>
+          <section class="panel">
+            <h3><i class="bi bi-star-fill estrella"></i> Méritos destacados</h3>
+            @for (d of destacados; track d.id) {
+              <button type="button" class="fila-alumno merito" [class.activo]="filtroEstudiante === d.id" (click)="alternarEstudiante(d.id)">
+                <span class="mini-avatar">{{ iniciales(d.nombre) }}</span>
+                <span class="fila-datos"><strong>{{ d.nombre }}</strong><small>{{ d.meritos }} {{ d.meritos === 1 ? 'mérito' : 'méritos' }}</small></span>
+              </button>
+            } @empty { <p class="panel-vacio">Aún no hay méritos registrados.</p> }
+          </section>
+        </aside>
+      </div>
+    }
+  </div>
+
+  <!-- ============ NUEVA PAPELETA ============ -->
+  @if (showModal) {
+    <div class="modal-fondo" (click)="cerrarModal()">
+      <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-papeleta" (click)="$event.stopPropagation()">
+        <button type="button" class="cerrar-x" (click)="cerrarModal()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        <h3 id="titulo-papeleta"><i class="bi bi-journal-plus"></i> Nueva papeleta</h3>
+        <p class="sub">{{ nombreSeccion }} · la familia recibe el aviso al emitirla</p>
+
+        <form [formGroup]="reporteForm" (ngSubmit)="guardarReporte()">
+          <span class="paso"><b>1</b> ¿A quién?</span>
+          @if (estudianteElegido; as elegido) {
+            <div class="elegido">
+              <span class="mini-avatar">{{ iniciales(elegido.nombre + ' ' + elegido.apellido) }}</span>
+              <span><strong>{{ elegido.apellido }}, {{ elegido.nombre }}</strong><small>DNI {{ elegido.dni }}</small></span>
+              <button type="button" (click)="reporteForm.patchValue({ estudianteId: null })">Cambiar</button>
+            </div>
+          } @else {
+            <label class="buscar-alumno" for="buscar-alumno">
+              <i class="bi bi-search"></i>
+              <input id="buscar-alumno" [(ngModel)]="busquedaModal" [ngModelOptions]="{ standalone: true }" placeholder="Escribe apellido, nombre o DNI" autocomplete="off">
+            </label>
+            <div class="lista-alumnos">
+              @for (e of estudiantesModal; track e.id) {
+                <button type="button" (click)="elegirEstudiante(e.id)">
+                  <span class="mini-avatar">{{ iniciales(e.nombre + ' ' + e.apellido) }}</span>{{ e.apellido }}, {{ e.nombre }}
+                </button>
+              } @empty { <p class="panel-vacio">Ningún estudiante coincide.</p> }
+            </div>
+            @if (reporteForm.get('estudianteId')?.touched && reporteForm.get('estudianteId')?.invalid) { <span class="error-msg">Elige al estudiante</span> }
+          }
+
+          <span class="paso"><b>2</b> ¿Qué pasó?</span>
+          <div class="tipos" role="radiogroup" aria-label="Tipo de papeleta">
+            @for (t of tiposReporte; track t.value) {
+              <label class="tipo-card" [attr.data-tipo]="t.color" [class.activo]="reporteForm.value.tipo === t.value">
+                <input type="radio" formControlName="tipo" [value]="t.value">
+                <i class="bi" [ngClass]="t.icon"></i><span>{{ t.label }}</span>
+              </label>
             }
           </div>
-          <div class="form-group">
-            <label>Observaciones adicionales</label>
-            <input formControlName="observaciones" class="form-control" placeholder="Opcional...">
+
+          <span class="paso"><b>3</b> Cuéntalo en una línea</span>
+          <div class="sugerencias">
+            @for (s of sugerencias[reporteForm.value.tipo] || []; track s) {
+              <button type="button" (click)="usarSugerencia(s)">{{ s }}</button>
+            }
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn-secondary" (click)="cerrarModal()">Cancelar</button>
-            <button type="submit" class="btn-primary" [disabled]="submitting">
-              {{ submitting ? 'Guardando...' : '📄 Emitir Papeleta' }}
+          <textarea formControlName="descripcion" class="campo" rows="3" placeholder="Describe lo ocurrido…"></textarea>
+          @if (reporteForm.get('descripcion')?.touched && reporteForm.get('descripcion')?.invalid) {
+            <span class="error-msg">Escribe al menos 10 caracteres</span>
+          }
+          <input formControlName="observaciones" class="campo" placeholder="Observaciones (opcional): acuerdos, compromisos…">
+
+          <div class="modal-botones">
+            <button type="button" class="btn btn-outline-secondary" (click)="cerrarModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="submitting">
+              @if (submitting) { <span class="spinner-border spinner-border-sm"></span> } @else { <i class="bi bi-send-fill"></i> }
+              Emitir papeleta
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+  @if (protocoloDe; as r) {
+    <div class="modal-fondo" (click)="protocoloDe = null">
+      <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-protocolo" (click)="$event.stopPropagation()">
+        <button type="button" class="cerrar-x" (click)="protocoloDe = null" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        <h3 id="titulo-protocolo"><i class="bi bi-shield-check"></i> Protocolo de atención</h3>
+        <p class="sub">{{ nombreDe(r) }} · {{ tipoLabel(r.tipo) }}. Se registra en el libro de incidencias y en SíseVe, se cita a la familia,
+          se dictan medidas de protección y, si corresponde, se deriva a un servicio externo.</p>
+        <form (ngSubmit)="guardarProtocolo()" class="protocolo-form">
+          <label>Código de registro en SíseVe
+            <input class="campo" name="siseve" maxlength="30" [(ngModel)]="protocolo.codigoSiseve" placeholder="ej. 2026-000123"></label>
+          <label>Fecha de registro
+            <input class="campo" type="date" name="fsiseve" [(ngModel)]="protocolo.fechaSiseve"></label>
+          <label class="ancho">Citación al apoderado (fecha y hora)
+            <input class="campo" type="datetime-local" name="citacion" [(ngModel)]="protocolo.citacionApoderado"></label>
+          <label class="ancho">Medidas de protección
+            <textarea class="campo" rows="2" name="medidas" maxlength="500" [(ngModel)]="protocolo.medidasProteccion"
+              placeholder="ej. Cambio de ubicación en el aula, acompañamiento del tutor en recreos"></textarea></label>
+          <label>Derivación externa
+            <select class="campo" name="derivacion" [(ngModel)]="protocolo.derivacionExterna">
+              <option value="">Sin derivación</option>
+              @for (d of derivaciones; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+            </select></label>
+          <label>Fecha de derivación
+            <input class="campo" type="date" name="fderivacion" [(ngModel)]="protocolo.fechaDerivacion"></label>
+          <div class="modal-botones ancho">
+            <button type="button" class="btn btn-outline-secondary" (click)="protocoloDe = null">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="guardandoProtocolo">Guardar</button>
           </div>
         </form>
       </div>

@@ -1,9 +1,8 @@
-FROM maven:3.9.6-eclipse-temurin-17 AS build
+FROM maven:3.9.11-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
 COPY src ./src
-RUN mvn clean package -DskipTests -B
+RUN --mount=type=cache,target=/root/.m2 mvn clean package -Dmaven.test.skip=true -B
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
@@ -12,4 +11,4 @@ COPY --from=build /app/target/*.jar app.jar
 RUN chown paduser:padgroup app.jar
 USER paduser
 EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+ExitOnOutOfMemoryError", "-jar", "app.jar"]

@@ -1,0 +1,361 @@
+<div class="asistencia-page">
+  <app-live-banner [modulos]="['asistencias']" (refrescar)="cargarRegistros()"></app-live-banner>
+  <header class="page-header mb-4 d-flex justify-content-between align-items-start flex-wrap gap-3">
+    <div>
+      <span class="eyebrow">Aula diaria</span>
+      <h1 class="page-title mb-1">Control de asistencia</h1>
+      <p class="text-muted mb-0" *ngIf="vistaActual === 'grados'">Selecciona un grado para tomar asistencia.</p>
+      <p class="text-muted mb-0" *ngIf="vistaActual === 'secciones'">Selecciona una sección de {{ gradoNavegacion?.nombre }}.</p>
+      <p class="text-muted mb-0" *ngIf="vistaActual === 'cursos'">Selecciona tu curso para registrar la asistencia.</p>
+      <p class="text-muted mb-0" *ngIf="vistaActual === 'gestor'">Llama asistencia en segundos: inicia, marca solo las excepciones y cierra.</p>
+    </div>
+  </header>
+
+  @if (error) { <div class="alert alert-danger">{{ error }}</div> }
+  @if (mensaje) { <div class="alert alert-success">{{ mensaje }}</div> }
+
+  <!-- ============ VISTA 1: CAJONES DE GRADOS ============ -->
+  <div *ngIf="vistaActual === 'grados' && !loading">
+    <app-continuar-seccion (continuar)="continuarUltima($event)"></app-continuar-seccion>
+    <div class="row g-4">
+      <div *ngFor="let grado of gradosDisponibles" class="col-md-6 col-lg-4">
+        <div class="glass-panel p-4 h-100 grado-card-nav" (click)="navegarAGrado(grado)" style="cursor: pointer; border-left: 4px solid var(--primary-color);">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h3 class="h4 fw-bold text-white mb-0">{{ grado.nombre }}</h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary opacity-75">Secundaria</span>
+          </div>
+          <p class="text-muted small mb-3">Tomar asistencia a los alumnos de {{ grado.nombre }}.</p>
+          <div class="d-flex justify-content-between align-items-center mt-auto">
+            <span class="text-white-50 small"><i class="bi bi-grid-1x2 me-1"></i> Ver secciones</span>
+            <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 2: SECCIONES DE UN GRADO ============ -->
+  <div *ngIf="vistaActual === 'secciones'">
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverAGrados()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a los grados
+    </button>
+    <h4 class="text-white mb-4"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Secciones de {{ gradoNavegacion?.nombre }}</h4>
+
+    <!-- Turno Manana -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesMananaNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-manana-est"><i class="bi bi-sun-fill me-2"></i>Turno Mañana</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesMananaNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-manana">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turno Tarde -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesTardeNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-tarde-est"><i class="bi bi-moon-fill me-2"></i>Turno Tarde</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesTardeNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-tarde">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 2.5: CURSOS (INTRANET PROFESIONAL) ============ -->
+  <div *ngIf="vistaActual === 'cursos' && !loading">
+    <button *ngIf="!esDocenteRestringido" class="btn btn-outline-light mb-4 btn-sm" (click)="volverASecciones()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a las secciones
+    </button>
+    <div class="row g-4">
+      <div *ngFor="let card of misCursos" class="col-md-6 col-lg-4">
+        <div class="glass-panel p-4 h-100 d-flex flex-column" (click)="navegarACurso(card)" style="cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; border-top: 4px solid var(--primary-color);" onmouseover="this.style.transform='translateY(-5px)'; this.style.boxShadow='0 10px 20px rgba(0,0,0,0.2)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div>
+              <span class="badge bg-secondary mb-2">{{ card.gradoNombre }} - {{ card.seccionNombre }}</span>
+              <h3 class="h4 fw-bold text-white mb-1">{{ card.cursoNombre }}</h3>
+            </div>
+            <div class="rounded-circle bg-primary-subtle d-flex align-items-center justify-content-center text-primary flex-shrink-0" style="width: 48px; height: 48px;">
+              <i class="bi bi-book fs-4"></i>
+            </div>
+          </div>
+          <div class="mt-auto d-flex align-items-center text-muted small">
+            <i class="bi bi-person-fill me-2 text-primary"></i> {{ card.docenteNombre }}
+          </div>
+          <hr class="border-secondary my-3">
+          <div class="d-flex justify-content-between align-items-center mt-auto">
+            <span class="text-primary fw-medium small">Controlar asistencia</span>
+            <i class="bi bi-arrow-right fs-5 text-primary"></i>
+          </div>
+        </div>
+      </div>
+      
+      <div *ngIf="misCursos.length === 0 && !loading" class="col-12">
+        <div class="alert alert-info text-center p-4">
+          <i class="bi bi-info-circle-fill fs-3 d-block mb-2"></i>
+          No tienes cursos asignados o no hay cursos configurados en esta sección.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 3: LLAMADO DE ASISTENCIA ============ -->
+  <div *ngIf="vistaActual === 'gestor'" class="gestor">
+    <div class="gestor-barra">
+      <button class="btn btn-outline-light btn-sm" (click)="volverACursos()">
+        <i class="bi bi-arrow-left me-2"></i> Volver a los cursos
+      </button>
+      <button type="button" class="btn-exportar" (click)="abrirExportar()">
+        <i class="bi bi-cloud-arrow-down-fill"></i> Exportar <span>PDF · Excel</span>
+      </button>
+    </div>
+
+    <!-- Pizarra de la clase -->
+    <section class="pizarra-aula">
+      <div class="pizarra-aula-marco">
+        <div class="pizarra-info">
+          <p class="tiza-dia">{{ fechaLarga }}</p>
+          <h2 class="tiza-curso">{{ nombreCurso }}</h2>
+          <div class="tiza-chips">
+            <span class="chip-tiza"><i class="bi bi-people-fill"></i>{{ nombreSeccion }} · {{ turnoSeccion }}</span>
+            <span class="chip-tiza"><i class="bi bi-clock-fill"></i>{{ etiquetaBloque }}</span>
+            @if (nombreDocente) { <span class="chip-tiza"><i class="bi bi-person-badge-fill"></i>{{ nombreDocente }}</span> }
+            <span class="chip-estado" [attr.data-estado]="estadoLlamado"><span class="punto"></span>{{ soloLectura && estadoLlamado !== 'CERRADO' ? 'Supervisión · ' : '' }}{{ textoEstado }}</span>
+          </div>
+        </div>
+        <div class="pizarra-controles">
+          <label for="fecha-asistencia">Fecha
+            <input id="fecha-asistencia" type="date" [(ngModel)]="fecha" (change)="cambiarContexto()">
+          </label>
+          <label for="curso-asistencia">Curso
+            <select id="curso-asistencia" [(ngModel)]="cursoId" (change)="cambiarContexto()">
+              @for (curso of cursosDisponibles; track curso.id) { <option [ngValue]="curso.id">{{ curso.nombre }}</option> }
+            </select>
+          </label>
+          <label for="bloque-asistencia">Bloque
+            <select id="bloque-asistencia" [(ngModel)]="horarioId" (change)="cargarRegistros()">
+              @for (horario of horariosDisponibles; track horario.id) { <option [ngValue]="horario.id">{{ horario.diaSemana }} · {{ horario.horaInicio.slice(0,5) }}–{{ horario.horaFin.slice(0,5) }}</option> }
+            </select>
+          </label>
+        </div>
+        <span class="tiza" aria-hidden="true"></span><span class="mota" aria-hidden="true"></span>
+      </div>
+    </section>
+
+    @if (loading) {
+      <div class="cargando-aula"><span class="spinner-border spinner-border-sm"></span> Preparando el aula…</div>
+    } @else if (estadoLlamado === 'SIN_INICIAR') {
+      <!-- Aún no se llama asistencia -->
+      <section class="inicio-llamado">
+        <div class="campana" aria-hidden="true"><i class="bi bi-megaphone-fill"></i></div>
+        <h3>Todavía no se llama asistencia en esta clase</h3>
+        <p>{{ filas.length }} estudiantes en {{ nombreSeccion }}. Al iniciar, todos aparecen como <strong>presentes</strong>: solo tocas a quien faltó o llegó tarde.</p>
+        <div class="caras" aria-hidden="true">
+          @for (fila of filas.slice(0, 9); track fila.id) { <span>{{ iniciales(fila) }}</span> }
+          @if (filas.length > 9) { <span class="mas">+{{ filas.length - 9 }}</span> }
+        </div>
+        @if (soloLectura) {
+          <p class="aviso"><i class="bi bi-eye"></i> Vista de supervisión: el llamado lo hace el docente o el auxiliar.</p>
+        } @else if (fechaFutura) {
+          <p class="aviso"><i class="bi bi-calendar-x"></i> No se puede llamar asistencia de una fecha futura.</p>
+        } @else if (!filas.length || !horarioId) {
+          <p class="aviso"><i class="bi bi-info-circle"></i> No hay estudiantes o bloque de horario para esta clase.</p>
+        } @else {
+          <button type="button" class="btn-llamar" (click)="pedirInicio()" [disabled]="abriendo">
+            @if (abriendo) { <span class="spinner-border spinner-border-sm"></span> } @else { <i class="bi bi-play-circle-fill"></i> }
+            Llamar asistencia
+          </button>
+        }
+      </section>
+    } @else {
+      <!-- Resumen del llamado -->
+      <section class="resumen-llamado">
+        <div class="anillo" [style.--p]="porcentajeAsistencia" role="img" [attr.aria-label]="porcentajeAsistencia + ' % de asistencia'">
+          <div><strong>{{ porcentajeAsistencia }}%</strong><small>asisten</small></div>
+        </div>
+        <div class="contadores">
+          @for (estado of estados; track estado) {
+            <button type="button" class="contador" [attr.data-state]="estado" [class.activo]="filtro === estado" (click)="alternarFiltro(estado)"
+                    [attr.aria-pressed]="filtro === estado" title="Ver solo: {{ etiqueta(estado) }}">
+              <strong>{{ contar(estado) }}</strong><span>{{ estado === 'JUSTIFICADO' ? 'Justificadas' : estado === 'FALTA' ? 'Faltas' : estado === 'TARDE' ? 'Tardanzas' : 'Presentes' }}</span>
+            </button>
+          }
+        </div>
+        <div class="herramientas">
+          <div class="modo-toggle" role="tablist" aria-label="Forma de llamar">
+            <button type="button" role="tab" [class.activo]="modo === 'lista'" [attr.aria-selected]="modo === 'lista'" (click)="cambiarModo('lista')"><i class="bi bi-grid-3x3-gap-fill"></i> Lista</button>
+            <button type="button" role="tab" [class.activo]="modo === 'uno'" [attr.aria-selected]="modo === 'uno'" (click)="cambiarModo('uno')"><i class="bi bi-person-video2"></i> Uno por uno</button>
+          </div>
+          @if (!bloqueado) {
+            <button type="button" class="btn-todos" (click)="marcarTodos('PRESENTE')"><i class="bi bi-check2-all"></i> Todos presentes</button>
+          }
+        </div>
+      </section>
+
+      @if (filtro) {
+        <div class="filtro-activo">Mostrando solo: <strong>{{ etiqueta(filtro) }}</strong> ({{ filasVisibles.length }}) <button type="button" (click)="filtro = null">Ver todos <i class="bi bi-x"></i></button></div>
+      }
+
+      @if (modo === 'lista') {
+        <section class="alumnos-grid" [class.bloqueada]="bloqueado">
+          @for (fila of filasVisibles; track fila.id) {
+            <article class="alumno" [attr.data-state]="fila.estadoAsistencia">
+              <button type="button" class="avatar" (click)="ciclar(fila)" [disabled]="bloqueado" title="Toca para cambiar el estado">{{ iniciales(fila) }}</button>
+              <div class="alumno-datos">
+                <strong>{{ fila.apellido }}, {{ fila.nombre }}</strong>
+                <small>N° {{ numero(fila) }} · DNI {{ fila.dni }}</small>
+              </div>
+              <div class="pildoras" role="radiogroup" [attr.aria-label]="'Asistencia de ' + fila.nombre">
+                @for (estado of estados; track estado) {
+                  <button type="button" role="radio" [attr.data-state]="estado" [class.activa]="fila.estadoAsistencia === estado" [attr.aria-checked]="fila.estadoAsistencia === estado"
+                          (click)="marcar(fila, estado)" [disabled]="bloqueado" [title]="etiqueta(estado)">{{ estado[0] }}</button>
+                }
+              </div>
+              @if (fila.estadoAsistencia === 'JUSTIFICADO') {
+                <input class="justificacion" maxlength="300" [(ngModel)]="fila.justificacion" [disabled]="bloqueado" placeholder="Motivo y sustento (ej. certificado médico)">
+              }
+            </article>
+          } @empty {
+            <p class="vacio">No hay estudiantes en este filtro.</p>
+          }
+        </section>
+      } @else {
+        @if (actual; as fila) {
+          <section class="uno-por-uno">
+            <div class="progreso" aria-hidden="true"><div [style.width.%]="(indiceActual + 1) * 100 / filas.length"></div></div>
+            @for (alumno of [fila]; track alumno.id) {
+              <article class="tarjeta-alumno" [attr.data-state]="alumno.estadoAsistencia">
+                <span class="posicion">{{ indiceActual + 1 }} de {{ filas.length }}</span>
+                <div class="avatar-grande">{{ iniciales(alumno) }}</div>
+                <h3>{{ alumno.nombre }} {{ alumno.apellido }}</h3>
+                <small>DNI {{ alumno.dni }}</small>
+                <div class="botones-grandes">
+                  @for (estado of estados; track estado) {
+                    <button type="button" [attr.data-state]="estado" [class.activa]="alumno.estadoAsistencia === estado" (click)="marcarActual(estado)" [disabled]="bloqueado">
+                      <i class="bi" [class.bi-check-circle-fill]="estado === 'PRESENTE'" [class.bi-alarm-fill]="estado === 'TARDE'"
+                         [class.bi-x-circle-fill]="estado === 'FALTA'" [class.bi-file-earmark-medical-fill]="estado === 'JUSTIFICADO'"></i>
+                      <span>{{ etiqueta(estado) }}</span><kbd>{{ estado[0] }}</kbd>
+                    </button>
+                  }
+                </div>
+                @if (alumno.estadoAsistencia === 'JUSTIFICADO') {
+                  <div class="justificacion-grande">
+                    <input maxlength="300" [(ngModel)]="alumno.justificacion" [disabled]="bloqueado" placeholder="Motivo y sustento" (keydown.enter)="siguiente()">
+                    <button type="button" (click)="siguiente()" [disabled]="bloqueado">Listo <i class="bi bi-arrow-right"></i></button>
+                  </div>
+                }
+              </article>
+            }
+            <div class="navegacion">
+              <button type="button" (click)="anterior()" [disabled]="indiceActual === 0"><i class="bi bi-chevron-left"></i> Anterior</button>
+              <label class="voz"><input type="checkbox" [(ngModel)]="leerEnVoz" (change)="leerNombre()"> <i class="bi bi-volume-up-fill"></i> Leer nombres en voz alta</label>
+              <button type="button" (click)="siguiente()" [disabled]="indiceActual >= filas.length - 1">Siguiente <i class="bi bi-chevron-right"></i></button>
+            </div>
+            @if (!bloqueado) { <p class="atajos">Atajos de teclado: <kbd>P</kbd> presente · <kbd>T</kbd> tarde · <kbd>F</kbd> falta · <kbd>J</kbd> justificada · <kbd>←</kbd> <kbd>→</kbd> moverse</p> }
+          </section>
+        }
+      }
+
+      @if (cerrada) {
+        <div class="sello-cerrado"><i class="bi bi-patch-check-fill"></i> {{ textoEstado }}. La asistencia de esta clase ya no se puede modificar.</div>
+      } @else if (!soloLectura) {
+        <footer class="acciones-llamado">
+          <span class="ayuda"><i class="bi bi-info-circle"></i> {{ contar('FALTA') + contar('TARDE') }} por revisar · guarda tu avance cuando quieras</span>
+          <button type="button" class="btn btn-outline-primary" (click)="guardar(false)" [disabled]="saving || !filas.length">Guardar avance</button>
+          <button type="button" class="btn btn-primary btn-terminar" (click)="pedirCierre()" [disabled]="saving || !filas.length">
+            @if (saving) { <span class="spinner-border spinner-border-sm me-1"></span> } <i class="bi bi-lock-fill"></i> Terminar y cerrar
+          </button>
+        </footer>
+      }
+    }
+  </div>
+
+  <!-- ============ CONFIRMACIONES ============ -->
+  @if (confirmacion) {
+    <div class="modal-fondo" (click)="confirmacion = null">
+      <div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="titulo-confirmacion" (click)="$event.stopPropagation()">
+        @if (confirmacion === 'abrir') {
+          <div class="modal-icono"><i class="bi bi-megaphone-fill"></i></div>
+          <h3 id="titulo-confirmacion">¿Seguro que quieres llamar asistencia?</h3>
+          <p>Vas a iniciar el llamado de esta clase:</p>
+          <dl class="modal-ficha">
+            <div><dt>Curso</dt><dd>{{ nombreCurso }}</dd></div>
+            <div><dt>Sección</dt><dd>{{ nombreSeccion }}</dd></div>
+            <div><dt>Fecha</dt><dd>{{ fechaLarga }}</dd></div>
+            <div><dt>Bloque</dt><dd>{{ etiquetaBloque }}</dd></div>
+            <div><dt>Estudiantes</dt><dd>{{ filas.length }}</dd></div>
+          </dl>
+          <p class="nota"><i class="bi bi-shield-check"></i> Quedará registrado a tu nombre con la hora de inicio.</p>
+          <div class="modal-botones">
+            <button type="button" class="btn btn-outline-secondary" (click)="confirmacion = null">Cancelar</button>
+            <button type="button" class="btn btn-primary" (click)="confirmar()" autofocus><i class="bi bi-play-fill"></i> Sí, llamar asistencia</button>
+          </div>
+        } @else {
+          <div class="modal-icono cerrar"><i class="bi bi-lock-fill"></i></div>
+          <h3 id="titulo-confirmacion">¿Terminar y cerrar el llamado?</h3>
+          <div class="mini-resumen">
+            @for (estado of estados; track estado) { <span [attr.data-state]="estado"><strong>{{ contar(estado) }}</strong> {{ etiqueta(estado) }}</span> }
+          </div>
+          <p>Después de cerrar, la asistencia de {{ nombreCurso }} ({{ etiquetaBloque }}) ya no se podrá modificar.</p>
+          <div class="modal-botones">
+            <button type="button" class="btn btn-outline-secondary" (click)="confirmacion = null">Seguir revisando</button>
+            <button type="button" class="btn btn-primary" (click)="confirmar()"><i class="bi bi-lock-fill"></i> Sí, cerrar</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ============ EXPORTAR ============ -->
+  @if (exportarAbierto) {
+    <div class="modal-fondo" (click)="exportarAbierto = false">
+      <div class="modal-caja exportar" role="dialog" aria-modal="true" aria-labelledby="titulo-exportar" (click)="$event.stopPropagation()">
+        <button type="button" class="cerrar-x" (click)="exportarAbierto = false" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
+        <h3 id="titulo-exportar"><i class="bi bi-cloud-arrow-down-fill"></i> Exportar asistencia</h3>
+        <p class="sub">{{ nombreCurso }} · {{ nombreSeccion }}</p>
+        <div class="periodos" role="radiogroup" aria-label="Periodo del reporte">
+          @for (p of periodos; track p.valor) {
+            <button type="button" role="radio" [class.activo]="periodoExport === p.valor" [attr.aria-checked]="periodoExport === p.valor" (click)="periodoExport = p.valor; errorExport = ''">
+              <i class="bi" [ngClass]="p.icono"></i><span>{{ p.titulo }}</span>
+            </button>
+          }
+        </div>
+        <label class="referencia" for="referencia-export">Fecha de referencia
+          <input id="referencia-export" type="date" [(ngModel)]="referenciaExport" (change)="errorExport = ''">
+        </label>
+        <p class="rango"><i class="bi bi-calendar-range"></i> Se incluirá: <strong>{{ descripcionExport }}</strong></p>
+        @if (errorExport) { <p class="error-export"><i class="bi bi-exclamation-circle"></i> {{ errorExport }}</p> }
+        <div class="formatos">
+          <button type="button" class="formato pdf" (click)="exportar('PDF')" [disabled]="exportando">
+            @if (exportando === 'PDF') { <span class="spinner-border"></span> } @else { <i class="bi bi-file-earmark-pdf-fill"></i> }
+            <strong>PDF</strong><small>Para imprimir o enviar</small>
+          </button>
+          <button type="button" class="formato excel" (click)="exportar('EXCEL')" [disabled]="exportando">
+            @if (exportando === 'EXCEL') { <span class="spinner-border"></span> } @else { <i class="bi bi-file-earmark-excel-fill"></i> }
+            <strong>Excel</strong><small>Para trabajar los datos</small>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

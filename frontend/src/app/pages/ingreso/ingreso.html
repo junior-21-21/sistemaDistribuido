@@ -1,0 +1,84 @@
+<div class="ingreso">
+  <section class="estacion" [class.solo-lectura]="!puedeRegistrar">
+    <div class="reloj">
+      <span class="hora">{{ reloj().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</span>
+      <span class="fecha">{{ reloj().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' }) }}</span>
+    </div>
+
+    @if (puedeRegistrar) {
+      <form class="lector" (ngSubmit)="enviar(codigo.length > 0 && codigo.length <= 8 ? 'MANUAL' : 'ESCANER')">
+        <span class="icono-lector" [class.trabajando]="enviando()"><i class="bi bi-upc-scan"></i></span>
+        <div class="campo">
+          <label for="codigo-dni">Escanea el DNI del estudiante</label>
+          <input #campo id="codigo-dni" name="codigo" [(ngModel)]="codigo" inputmode="numeric" autocomplete="off"
+                 placeholder="Pasa el código de barras o escribe el DNI y presiona Enter" maxlength="400" autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" [disabled]="enviando() || !codigo.trim()">Registrar</button>
+        <button type="button" class="btn btn-light btn-lg" (click)="alternarCamara()" [class.activa]="camaraActiva()">
+          <i class="bi" [class.bi-camera-video]="!camaraActiva()" [class.bi-camera-video-off]="camaraActiva()"></i>
+          {{ camaraActiva() ? 'Cerrar cámara' : 'Usar cámara' }}
+        </button>
+      </form>
+      @if (camaraActiva()) {
+        <div class="camara">
+          <video #video muted playsinline></video>
+          <span class="mira" aria-hidden="true"></span>
+          <small>Acerca el código de barras del reverso del DNI</small>
+        </div>
+      }
+      @if (errorCamara()) { <p class="error-camara"><i class="bi bi-exclamation-triangle"></i> {{ errorCamara() }}</p> }
+    } @else {
+      <p class="nota-lectura"><i class="bi bi-eye"></i> Vista de seguimiento: el registro lo hacen Auxiliares, Secretaría o Convivencia en la puerta.</p>
+    }
+
+    @if (resultado(); as r) {
+      @if (r.tipo === 'ok') {
+        <div class="resultado" [class.tarde]="r.ingreso.estado === 'TARDANZA'" [class.repetido]="r.ingreso.yaRegistrado" role="status" aria-live="assertive">
+          <span class="avatar">{{ r.ingreso.nombre.charAt(0) }}{{ r.ingreso.apellido.charAt(0) }}</span>
+          <div class="datos">
+            <strong>{{ r.ingreso.nombre }} {{ r.ingreso.apellido }}</strong>
+            <span>{{ nombreSeccion(r.ingreso.seccionId) }} · DNI {{ r.ingreso.dniFinal }}</span>
+          </div>
+          <div class="estado">
+            @if (r.ingreso.yaRegistrado) {
+              <b>Ya ingresó</b><small>a las {{ hora(r.ingreso.hora) }}</small>
+            } @else if (r.ingreso.estado === 'TARDANZA') {
+              <b>Tardanza</b><small>{{ hora(r.ingreso.hora) }} · {{ r.ingreso.minutosTarde }} min tarde</small>
+            } @else {
+              <b>¡Bienvenido!</b><small>Puntual · {{ hora(r.ingreso.hora) }}</small>
+            }
+          </div>
+        </div>
+      } @else {
+        <div class="resultado error" role="alert">
+          <span class="avatar"><i class="bi bi-x-lg"></i></span>
+          <div class="datos"><strong>No registrado</strong><span>{{ r.mensaje }}</span></div>
+        </div>
+      }
+    }
+  </section>
+
+  <section class="cifras">
+    <div class="cifra principal">
+      <div class="anillo" [style.--p]="porcentaje()"><span>{{ porcentaje() }}%</span></div>
+      <div><strong>{{ resumen().ingresaron }}</strong> de {{ resumen().activos }} estudiantes ya llegaron</div>
+    </div>
+    <div class="cifra verde"><i class="bi bi-check-circle-fill"></i><strong>{{ resumen().puntuales }}</strong><span>Puntuales</span></div>
+    <div class="cifra ambar"><i class="bi bi-alarm-fill"></i><strong>{{ resumen().tardanzas }}</strong><span>Tardanzas</span></div>
+    <div class="cifra gris"><i class="bi bi-hourglass-split"></i><strong>{{ faltan() }}</strong><span>Aún no llegan</span></div>
+  </section>
+
+  <section class="lista">
+    <h3>Últimos ingresos <span class="vivo"><span class="punto"></span>en vivo</span></h3>
+    @for (i of recientes(); track i.id) {
+      <div class="fila" [class.tarde]="i.estado === 'TARDANZA'">
+        <span class="hora-fila">{{ hora(i.hora) }}</span>
+        <span class="nombre">{{ i.apellido }}, {{ i.nombre }}</span>
+        <span class="seccion">{{ nombreSeccion(i.seccionId) }}</span>
+        <span class="chip" [class.tarde]="i.estado === 'TARDANZA'">{{ i.estado === 'TARDANZA' ? 'Tardanza +' + i.minutosTarde + ' min' : 'Puntual' }}</span>
+      </div>
+    } @empty {
+      <div class="empty-state"><i class="bi bi-door-open"></i><p>Todavía no ha ingresado nadie hoy.</p></div>
+    }
+  </section>
+</div>

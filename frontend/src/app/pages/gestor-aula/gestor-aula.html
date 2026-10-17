@@ -1,0 +1,258 @@
+<div class="container-fluid py-4 page-container">
+  <app-live-banner [modulos]="['horarios', 'asignaciones-academicas']" (refrescar)="cargarDatos()"></app-live-banner>
+<div class="container-fluid py-4 page-container">
+  
+  <div class="d-flex justify-content-between align-items-center mb-5 page-header">
+    <div>
+      <h2 class="display-6 mb-2 fw-bold text-white">
+        <i class="bi bi-grid-1x2 text-primary-glow me-2"></i>Gestor de Aula
+      </h2>
+      <p class="text-muted mt-2 mb-0" *ngIf="vistaActual === 'grados'">Selecciona un grado para gestionar el aula.</p>
+      <p class="text-muted mt-2 mb-0" *ngIf="vistaActual === 'secciones'">Selecciona una sección de {{ gradoNavegacion?.nombre }}.</p>
+      
+      <p class="text-muted mt-2 mb-0 d-flex gap-3" *ngIf="vistaActual === 'gestor' && seccion">
+        <span class="badge bg-dark border glass-border px-3 py-2">
+          <i class="bi bi-mortarboard me-2 text-primary"></i> {{ seccion.gradoNombre }} - {{ seccion.nivelNombre }}
+        </span>
+        <span class="badge bg-dark border glass-border px-3 py-2">
+          <i class="bi bi-sun me-2 text-primary"></i> Turno: {{ seccion.turno }}
+        </span>
+      </p>
+    </div>
+  </div>
+
+  <div *ngIf="cargando" class="text-center py-5">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+    <p class="mt-3 text-muted fw-semibold tracking-wide">Cargando...</p>
+  </div>
+
+  <!-- ============ VISTA 1: CAJONES DE GRADOS ============ -->
+  <div *ngIf="vistaActual === 'grados' && !cargando">
+    <div class="row g-4">
+      <div *ngFor="let grado of gradosDisponibles" class="col-md-6 col-lg-4">
+        <div class="glass-panel p-4 h-100 grado-card-nav" (click)="navegarAGrado(grado)" style="cursor: pointer; border-left: 4px solid var(--primary-color);">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h3 class="h4 fw-bold text-white mb-0">{{ grado.nombre }}</h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary opacity-75">Secundaria</span>
+          </div>
+          <p class="text-muted small mb-3">Gestionar horario y asignaciones de {{ grado.nombre }}.</p>
+          <div class="d-flex justify-content-between align-items-center mt-auto">
+            <span class="text-white-50 small"><i class="bi bi-grid-1x2 me-1"></i> Ver secciones</span>
+            <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 2: SECCIONES DE UN GRADO ============ -->
+  <div *ngIf="vistaActual === 'secciones'">
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverAGrados()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a los grados
+    </button>
+    <h4 class="text-white mb-4"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Secciones de {{ gradoNavegacion?.nombre }}</h4>
+
+    <!-- Turno Manana -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesMananaNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-manana-est"><i class="bi bi-sun-fill me-2"></i>Turno Mañana</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesMananaNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-manana">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turno Tarde -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesTardeNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-tarde-est"><i class="bi bi-moon-fill me-2"></i>Turno Tarde</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesTardeNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-tarde">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 3: GESTOR (HORARIO Y ASIGNACIONES) ============ -->
+  <div *ngIf="vistaActual === 'gestor'">
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverASecciones()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a secciones de {{ seccion?.gradoNombre }}
+    </button>
+    <div class="row g-4 mb-5" *ngIf="!cargando && seccion">
+    <!-- COLUMNA IZQUIERDA: NUEVA ASIGNACIÓN -->
+    <div class="col-lg-4 col-md-5">
+      <div class="glass-panel h-100 p-4 hover-lift">
+        <div class="d-flex align-items-center mb-4">
+          <div class="bg-primary-soft text-primary rounded-circle p-3 me-3">
+            <i class="bi bi-node-plus-fill fs-4"></i>
+          </div>
+          <h5 class="fw-bold mb-0 text-white">Vincular Docente</h5>
+        </div>
+        
+        <form (ngSubmit)="asignar()" #asignacionForm="ngForm">
+          <div class="mb-4">
+            <label class="form-label">Materia Académica</label>
+            <select class="form-select form-select-lg shadow-sm" name="curso" [(ngModel)]="nuevaAsignacion.cursoId" required>
+              <option [ngValue]="null" disabled selected>Selecciona un curso...</option>
+              <option *ngFor="let curso of cursos" [ngValue]="curso.id">{{ curso.nombre }}</option>
+            </select>
+          </div>
+          
+          <div class="mb-5">
+            <label class="form-label">Catedrático / Docente</label>
+            <select class="form-select form-select-lg shadow-sm" name="docente" [(ngModel)]="nuevaAsignacion.docenteId" required>
+              <option [ngValue]="null" disabled selected>Selecciona un profesor...</option>
+              <option *ngFor="let docente of docentes" [ngValue]="docente.id">{{ docente.nombre }} {{ docente.apellido }}</option>
+            </select>
+          </div>
+
+          <div class="mb-5">
+            <label class="form-label">Horas semanales</label>
+            <input type="number" class="form-control form-control-lg shadow-sm" name="horasSemanales"
+                   [(ngModel)]="nuevaAsignacion.horasSemanales" min="1" max="40" required>
+          </div>
+          
+          <button type="submit" class="btn btn-primary w-100 py-3 fs-6 rounded-4 hover-lift" [disabled]="!asignacionForm.valid">
+            <i class="bi bi-link-45deg fs-5 me-2"></i> Confirmar Asignación
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: DOCENTES ASIGNADOS -->
+    <div class="col-lg-8 col-md-7">
+      <div class="glass-panel h-100 overflow-hidden d-flex flex-column">
+        <div class="p-4 border-bottom glass-border">
+          <h5 class="fw-bold mb-0 text-white d-flex align-items-center">
+            <i class="bi bi-journal-richtext text-primary me-3 fs-4"></i> 
+            Carga Académica Establecida
+          </h5>
+        </div>
+        
+        <div class="flex-grow-1 p-0">
+          <div *ngIf="asignaciones.length === 0" class="text-center py-5 px-3 h-100 d-flex flex-column justify-content-center">
+            <div class="display-1 text-muted opacity-25 mb-4"><i class="bi bi-grid-1x2"></i></div>
+            <h5 class="text-white fw-semibold mb-2">Ecosistema vacío</h5>
+            <p class="text-muted">Aún no hay cursos asignados a este salón. Utiliza el panel lateral para estructurar el aula.</p>
+          </div>
+
+          <div class="table-responsive" *ngIf="asignaciones.length > 0">
+            <table class="table align-middle mb-0">
+              <thead>
+                <tr>
+                  <th class="ps-4">Curso / Materia</th>
+                  <th>Docente Encargado</th>
+                  <th class="text-end pe-4">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let asig of asignaciones" class="hover-lift">
+                  <td class="ps-4 py-3">
+                    <span class="fw-bold text-white d-block fs-6">{{ getNombreCurso(asig.cursoId) }}</span>
+                  </td>
+                  <td class="py-3">
+                    <div class="d-flex align-items-center">
+                      <div class="bg-dark text-primary rounded-circle d-flex justify-content-center align-items-center me-3 border glass-border shadow-sm" style="width: 38px; height: 38px;">
+                        <i class="bi bi-person-workspace fs-6"></i>
+                      </div>
+                      <span class="fw-semibold text-white d-block">{{ getNombreDocente(asig.docenteId) }}</span>
+                    </div>
+                  </td>
+                  <td class="text-end pe-4 py-3">
+                    <button class="btn btn-sm btn-outline-danger shadow-sm rounded-circle p-2 hover-lift" (click)="eliminar(asig.id!)" title="Desvincular">
+                      <i class="bi bi-x-lg"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN HORARIO SEMANAL -->
+  <div class="row g-4" *ngIf="!cargando && seccion">
+    <div class="col-12">
+      <div class="glass-panel p-4">
+        <h5 class="fw-bold mb-4 text-white d-flex align-items-center">
+          <i class="bi bi-calendar3 text-primary me-3 fs-4"></i> 
+          Horario Semanal
+        </h5>
+        
+        <div class="table-responsive">
+          <table class="table table-bordered glass-table align-middle text-center mb-0" style="min-width: 800px;">
+            <thead>
+              <tr>
+                <th width="150" class="bg-dark text-white border-secondary">Hora</th>
+                <th *ngFor="let dia of diasSemana" class="bg-dark text-white border-secondary">{{ dia }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let bloque of bloquesHora">
+                <td class="bg-dark text-white border-secondary fw-semibold">{{ bloque.etiqueta }}</td>
+                
+                <!-- Celda de RECREO -->
+                <ng-container *ngIf="bloque.etiqueta === 'RECREO'">
+                  <td colspan="5" class="bg-secondary bg-opacity-25 text-white fw-bold tracking-wide border-secondary text-uppercase py-3">
+                    <i class="bi bi-cup-hot me-2"></i> R E C R E O
+                  </td>
+                </ng-container>
+
+                <!-- Celdas de Clases -->
+                <ng-container *ngIf="bloque.etiqueta !== 'RECREO'">
+                  <td *ngFor="let dia of diasSemana" class="border-secondary p-2 position-relative" style="height: 90px; vertical-align: top;">
+                    
+                    <ng-container *ngIf="getHorarioBloque(dia, bloque.inicio) as horarioExistente">
+                      <div class="horario-card bg-primary bg-opacity-25 border border-primary rounded p-2 h-100 d-flex flex-column justify-content-between position-relative">
+                        <button class="btn-close btn-close-white position-absolute top-0 end-0 m-1" style="font-size: 0.5rem;" (click)="eliminarHorario(horarioExistente.id!)"></button>
+                        <strong class="text-white small d-block text-truncate" title="{{ getNombreCurso(horarioExistente.cursoId) }}">{{ getNombreCurso(horarioExistente.cursoId) }}</strong>
+                        <small class="text-muted d-block text-truncate" style="font-size: 0.7rem;" title="{{ getNombreDocente(horarioExistente.docenteId) }}">{{ getNombreDocente(horarioExistente.docenteId) }}</small>
+                      </div>
+                    </ng-container>
+                    
+                    <ng-container *ngIf="!getHorarioBloque(dia, bloque.inicio)">
+                      <select class="form-select form-select-sm glass-select bg-transparent text-white border-secondary h-100 opacity-50 hover-opacity-100 transition-all"
+                              (change)="asignarHorario(dia, bloque.inicio, bloque.fin, $event)">
+                        <option value="" selected disabled>+ Libre</option>
+                        <option *ngFor="let asig of asignaciones" [value]="asig.id">
+                          {{ getNombreCurso(asig.cursoId) }}
+                        </option>
+                      </select>
+                    </ng-container>
+
+                  </td>
+                </ng-container>
+
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>

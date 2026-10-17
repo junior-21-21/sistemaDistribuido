@@ -7,6 +7,9 @@ server:
     mime-types: application/json,text/css,application/javascript,text/html
     min-response-size: 1024
 
+jwt:
+  secret: ${JWT_SECRET}
+
 resilience4j:
   circuitbreaker:
     configs:
@@ -16,6 +19,12 @@ resilience4j:
         waitDurationInOpenState: 10000ms
         permittedNumberOfCallsInHalfOpenState: 3
         minimumNumberOfCalls: 5
+  timelimiter:
+    configs:
+      default:
+        # El valor por defecto (1 s) cortaba con 504 cualquier consulta algo más lenta
+        # (arranque en frío, guardar horarios de un turno completo, reportes).
+        timeoutDuration: 25s
 
 
 spring:
@@ -23,10 +32,15 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      # Tiempos hacia los microservicios. Cada ruta tiene su propio circuit breaker:
+      # si un servicio cae, los demás siguen respondiendo.
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 30s
       globalcors:
         cors-configurations:
           '[/**]':
-            allowedOrigins: "*"
+            allowedOriginPatterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*}
             allowedMethods:
               - GET
               - POST
@@ -39,33 +53,87 @@ spring:
         - id: servicio-estudiantes
           uri: http://localhost:8082
           predicates:
-            - Path=/api/estudiantes/**,/api/auth/**,/api/apoderados/**,/api/documentos/**,/api/derivaciones/**,/api/fichas-medicas/**
+            - Path=/api/estudiantes/**,/api/auth/**,/api/usuarios/**,/api/apoderados/**,/api/documentos/**,/api/derivaciones/**,/api/fichas-medicas/**,/api/atenciones-medicas/**,/api/portal-apoderado/**,/api/auditoria/**,/api/consentimientos/**,/api/ingresos/**,/api/recuperacion/**,/api/institucion/**,/api/permisos/**,/api/nominas/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-estudiantes
+                fallbackUri: forward:/fallback/servicio-estudiantes
         - id: servicio-cursos
           uri: http://localhost:8083
           predicates:
-            - Path=/api/cursos/**,/api/horarios/**,/api/docentes/**,/api/tickets/**,/api/aulas/**,/api/niveles/**,/api/grados/**,/api/secciones/**,/api/periodos/**
+            - Path=/api/cursos/**,/api/asignaciones-academicas/**,/api/docentes/**,/api/tickets/**,/api/aulas/**,/api/niveles/**,/api/grados/**,/api/secciones/**,/api/periodos/**,/api/horarios/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-cursos
+                fallbackUri: forward:/fallback/servicio-cursos
         - id: servicio-evaluaciones
           uri: http://localhost:8084
           predicates:
-            - Path=/api/notas/**,/api/asistencias/**
+            - Path=/api/notas/**,/api/asistencias/**,/api/bimestres/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-evaluaciones
+                fallbackUri: forward:/fallback/servicio-evaluaciones
         - id: servicio-disciplina
           uri: http://localhost:8081
           predicates:
             - Path=/api/disciplina/**,/api/reportes-disciplinarios/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-disciplina
+                fallbackUri: forward:/fallback/servicio-disciplina
         - id: servicio-reportes
           uri: http://localhost:8085
           predicates:
-            - Path=/api/reportes/**,/api/alertas/**,/api/estadisticas/**,/api/actividades/**
+            - Path=/api/reportes/**,/api/alertas/**,/api/estadisticas/**,/api/actividades/**,/api/integridad/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-reportes
+                fallbackUri: forward:/fallback/servicio-reportes
+        - id: servicio-notificaciones
+          uri: http://localhost:8086
+          predicates:
+            - Path=/api/notificaciones/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-notificaciones
+                fallbackUri: forward:/fallback/servicio-notificaciones
+        # Debe evaluarse antes que servicio-cursos, cuyo predicado /api/horarios/** también coincide.
+        - id: servicio-horarios
+          order: -1
+          uri: http://localhost:8088
+          predicates:
+            - Path=/api/horarios/generar,/api/horarios/detener,/api/horarios/estado,/api/horarios/resultado,/api/horarios/parametros
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: servicio-horarios
+                fallbackUri: forward:/fallback/servicio-horarios
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,gateway,prometheus,metrics
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:0.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
 
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
+  pattern:
+    correlation: '[${spring.application.name:},%X{traceId:-},%X{spanId:-}] '
+

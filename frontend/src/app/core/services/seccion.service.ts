@@ -28,6 +28,15 @@ export class SeccionService {
     return this.http.put<Seccion>(`${this.apiUrl}/${id}`, seccion);
   }
 
+  /** Secciones donde el docente que inició sesión es tutor. */
+  getMisTutorias(): Observable<Seccion[]> {
+    return this.http.get<Seccion[]>(`${this.apiUrl}/tutoria/mias`);
+  }
+
+  asignarTutor(id: number, docenteId: number | null): Observable<Seccion> {
+    return this.http.put<Seccion>(`${this.apiUrl}/${id}/tutor`, { docenteId });
+  }
+
   deleteSeccion(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }

@@ -5,13 +5,14 @@ import { Observable } from 'rxjs';
 export interface DerivacionPsicologica {
   id?: number;
   estudianteId: number;
-  docenteId?: number;
+  docenteDerivadorId?: number;
   motivo: string;
   descripcion: string;
+  prioridad: string;
   estado?: string;
   fechaDerivacion?: string;
-  fechaSeguimiento?: string;
-  nombreEstudiante?: string;
+  fechaAtencion?: string;
+  notasPsicologo?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -31,6 +32,6 @@ export class DerivacionService {
   }
 
   actualizarEstado(id: number, estado: string): Observable<DerivacionPsicologica> {
-    return this.http.patch<DerivacionPsicologica>(`/api/derivaciones/${id}/estado`, { estado });
+    return this.http.put<DerivacionPsicologica>(`/api/derivaciones/${id}/atender`, { estado });
   }
 }

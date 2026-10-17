@@ -1,0 +1,40 @@
+@if (layout.buscadorAbierto()) {
+  <div class="fondo" (click)="cerrar()" aria-hidden="true"></div>
+  <div class="paleta" role="dialog" aria-modal="true" aria-label="Buscar o ir a una pantalla">
+    <div class="entrada">
+      <i class="bi bi-search" aria-hidden="true"></i>
+      <input #campo type="text" [value]="consulta()" (input)="escribir(campo.value)"
+             placeholder="¿A dónde quieres ir? Ej.: notas, asistencia, matricular…"
+             aria-label="Buscar" autocomplete="off" spellcheck="false" />
+      <kbd>Esc</kbd>
+    </div>
+
+    <div class="lista" role="listbox">
+      @for (comando of resultados(); track comando.id; let i = $index) {
+        @if (i === 0 || resultados()[i - 1].grupo !== comando.grupo) {
+          <div class="grupo">{{ comando.grupo }}</div>
+        }
+        <button type="button" class="opcion" role="option" [class.activa]="i === seleccion()"
+                [attr.aria-selected]="i === seleccion()" (mouseenter)="seleccion.set(i)" (click)="ejecutar(comando)">
+          <span class="icono"><i class="bi" [class]="comando.icono"></i></span>
+          <span class="texto">
+            <strong>{{ comando.titulo }}</strong>
+            <small>{{ comando.detalle }}</small>
+          </span>
+          <i class="bi bi-arrow-return-left enter" aria-hidden="true"></i>
+        </button>
+      } @empty {
+        <div class="vacio">
+          <i class="bi bi-emoji-neutral" aria-hidden="true"></i>
+          <p>No encontramos “{{ consulta() }}”. Prueba con otra palabra.</p>
+        </div>
+      }
+    </div>
+
+    <div class="pie">
+      <span><kbd>↑</kbd><kbd>↓</kbd> moverse</span>
+      <span><kbd>Enter</kbd> abrir</span>
+      <span><kbd>/</kbd> abrir buscador</span>
+    </div>
+  </div>
+}

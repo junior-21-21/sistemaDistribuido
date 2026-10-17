@@ -10,7 +10,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 /**
  * CustomUserDetailsService — Carga usuarios desde la BD para Spring Security.
@@ -34,12 +33,12 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         // Spring Security necesita "ROLE_DIRECTOR", "ROLE_DOCENTE", etc.
-        String role = "ROLE_" + usuario.getRol();
-
         return User.builder()
             .username(usuario.getUsername())
             .password(usuario.getPassword())
-            .authorities(List.of(new SimpleGrantedAuthority(role)))
+            .authorities(usuario.getRoles().stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .toList())
             .build();
     }
 }

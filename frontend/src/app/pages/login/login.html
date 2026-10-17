@@ -1,37 +1,108 @@
-<div class="login-container">
-  <div class="glass-card">
-    <div class="text-center mb-4">
-      <div class="logo-container">PAD</div>
-      <h2 class="mt-3 mb-1">Bienvenido</h2>
-      <p class="text-muted-light small">Plataforma Académica Distribuida</p>
+<main class="login">
+  <section class="escena" aria-hidden="true">
+    <div class="escena-top">
+      <span class="logo">
+        <svg viewBox="0 0 32 32" width="24" height="24">
+          <path d="M16 4 3 10.5 16 17l10-5v7h2.5v-8.25L16 4Z" fill="currentColor" />
+          <path d="M8 15.5V21c0 2.2 3.6 4.5 8 4.5s8-2.3 8-4.5v-5.5l-8 4-8-4Z" fill="currentColor" opacity=".6" />
+        </svg>
+      </span>
+      <span class="marca"><strong>PAD</strong> · I.E.P. Huamanga</span>
     </div>
 
-    <div *ngIf="errorMessage" class="alert alert-danger bg-danger text-white border-0 rounded-3 small py-2 fade show" role="alert">
-      {{ errorMessage }}
+    <div class="escena-texto">
+      <p class="saludo">{{ saludo }}</p>
+      <h1>Todo tu colegio,<br><span>en un solo lugar.</span></h1>
+      <p class="lema">Asistencia, notas, horarios, convivencia y familias conectados al instante.</p>
     </div>
 
-    <form (ngSubmit)="login()">
-      <div class="mb-3">
-        <label for="username" class="form-label text-muted-light small fw-medium">Usuario</label>
-        <input type="text" class="form-control-custom w-100" id="username" [(ngModel)]="credentials.username" name="username" placeholder="ej. director, docente1" required autocomplete="username">
+    <!-- Tarjetas que simulan la actividad en vivo de la plataforma -->
+    <div class="vitrina">
+      <div class="tarjeta t1">
+        <span class="ico verde"><i class="bi bi-person-check-fill"></i></span>
+        <div><strong>Asistencia tomada</strong><small>3.º B · 28 de 30 presentes</small></div>
       </div>
-      
-      <div class="mb-4">
-        <label for="password" class="form-label text-muted-light small fw-medium">Contraseña</label>
-        <input type="password" class="form-control-custom w-100" id="password" [(ngModel)]="credentials.password" name="password" placeholder="••••••••" required autocomplete="current-password">
+      <div class="tarjeta t2">
+        <span class="ico azul"><i class="bi bi-journal-check"></i></span>
+        <div><strong>Notas publicadas</strong><small>Matemática · 1.er bimestre</small></div>
       </div>
-      
-      <button type="submit" class="btn btn-login w-100 d-flex justify-content-center align-items-center" [disabled]="isLoading || !credentials.username || !credentials.password">
-        <span *ngIf="!isLoading">Ingresar al Sistema</span>
-        <div *ngIf="isLoading" class="spinner-border spinner-border-sm text-light me-2" role="status">
-          <span class="visually-hidden">Cargando...</span>
+      <div class="tarjeta t3">
+        <span class="ico ambar"><i class="bi bi-bell-fill"></i></span>
+        <div><strong>Aviso a familias</strong><small>Enviado en tiempo real</small></div>
+      </div>
+      <span class="en-vivo"><span class="punto"></span>En vivo</span>
+    </div>
+
+    <ul class="beneficios">
+      <li><i class="bi bi-lightning-charge-fill"></i>Cambios al instante, sin recargar</li>
+      <li><i class="bi bi-shield-lock-fill"></i>Cada rol ve solo lo que necesita</li>
+      <li><i class="bi bi-phone-fill"></i>Funciona en computadora y celular</li>
+    </ul>
+  </section>
+
+  <section class="formulario" aria-labelledby="login-title">
+    <button type="button" class="tema" (click)="theme.alternar()" [attr.aria-label]="theme.tema() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'">
+      <i class="bi" [class.bi-moon-stars]="theme.tema() === 'light'" [class.bi-sun]="theme.tema() === 'dark'"></i>
+    </button>
+
+    <div class="caja">
+      <div class="marca-movil">
+        <span class="logo"><i class="bi bi-mortarboard-fill"></i></span>
+        <strong>PAD</strong>
+      </div>
+
+      <h2 id="login-title">Ingresa a tu cuenta</h2>
+      <p class="sub">Usa el usuario y la contraseña que te entregó el colegio.</p>
+
+      @if (errorMessage) {
+        <div class="alerta" role="alert" aria-live="polite">
+          <i class="bi bi-exclamation-circle-fill"></i><span>{{ errorMessage }}</span>
         </div>
-        <span *ngIf="isLoading">Verificando...</span>
-      </button>
-    </form>
-    
-    <div class="text-center mt-4 pt-3 border-top border-secondary">
-      <p class="text-muted-light" style="font-size: 0.7rem;">&copy; 2026 Ministerio de Educación. Todos los derechos reservados.</p>
+      }
+
+      <form (ngSubmit)="login()" #loginForm="ngForm" novalidate>
+        <label for="username">Usuario</label>
+        <div class="campo">
+          <i class="bi bi-person"></i>
+          <input id="username" name="username" type="text" [(ngModel)]="credentials.username"
+                 placeholder="ej. docente1" required autocomplete="username" autocapitalize="none" autofocus>
+        </div>
+
+        <label for="password">Contraseña</label>
+        <div class="campo">
+          <i class="bi bi-lock"></i>
+          <input id="password" name="password" [type]="isPasswordVisible ? 'text' : 'password'"
+                 [(ngModel)]="credentials.password" placeholder="Tu contraseña" required
+                 autocomplete="current-password" (keyup)="detectarMayusculas($event)" (keydown)="detectarMayusculas($event)">
+          <button type="button" class="ver" (click)="isPasswordVisible = !isPasswordVisible"
+                  [attr.aria-label]="isPasswordVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+            <i class="bi" [class.bi-eye]="!isPasswordVisible" [class.bi-eye-slash]="isPasswordVisible"></i>
+          </button>
+        </div>
+        @if (mayusculas) {
+          <p class="aviso"><i class="bi bi-capslock-fill"></i>Las mayúsculas están activadas</p>
+        }
+
+        <label class="recordar">
+          <input type="checkbox" name="recordar" [(ngModel)]="recordarUsuario">
+          <span>Recordar mi usuario en este equipo</span>
+        </label>
+
+        <button type="submit" class="entrar" [disabled]="isLoading || loginForm.invalid">
+          @if (isLoading) {
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Verificando…</span>
+          } @else {
+            <span>Ingresar a la plataforma</span><i class="bi bi-arrow-right"></i>
+          }
+        </button>
+      </form>
+
+      <p class="ayuda">
+        <i class="bi bi-question-circle"></i>
+        ¿Olvidaste tu contraseña? Pide a Administración del sistema que la restablezca.
+      </p>
     </div>
-  </div>
-</div>
+
+    <footer>Plataforma Académica Distribuida · {{ anio }}</footer>
+  </section>
+</main>

@@ -1,0 +1,14 @@
+<div class="toast-stack" aria-live="polite" aria-atomic="false">
+  @for (toast of toasts.toasts(); track toast.id) {
+    <div class="toast-item" [class]="'toast-item ' + toast.tipo" role="status">
+      <span class="icono"><i class="bi" [class]="toast.icono || 'bi-info-circle-fill'"></i></span>
+      <div class="texto">
+        <strong>{{ toast.titulo }}</strong>
+        @if (toast.detalle) { <span>{{ toast.detalle }}</span> }
+      </div>
+      <button type="button" class="cerrar" (click)="toasts.cerrar(toast.id)" aria-label="Cerrar aviso">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  }
+</div>

@@ -9,6 +9,8 @@ public interface SeccionRepository extends JpaRepository<Seccion, Long> {
     List<Seccion> findByAnioEscolarAndActivaTrue(Integer anioEscolar);
     List<Seccion> findByTurnoAndAnioEscolarAndActivaTrue(String turno, Integer anioEscolar);
     long countByGradoIdAndActivaTrue(Long gradoId);
+    List<Seccion> findByDocenteTutorIdAndAnioEscolarAndActivaTrue(Long docenteTutorId, Integer anioEscolar);
+    boolean existsByIdAndDocenteTutorIdAndActivaTrue(Long id, Long docenteTutorId);
 
     /** Verifica si ya existe una sección con el mismo nombre, grado, turno y año (excluyendo el id actual en edición) */
     boolean existsByNombreIgnoreCaseAndGradoIdAndTurnoAndAnioEscolarAndIdNot(

@@ -17,4 +17,5 @@ public class SeccionDTO {
     private Boolean activa;
     private Integer anioEscolar;
     private Long docenteTutorId;
+    private String docenteTutorNombre;
 }

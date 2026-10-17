@@ -1,0 +1,271 @@
+<div class="portal-container">
+  <div class="page-header mb-4">
+    <h1 class="page-title"><i class="bi bi-mortarboard-fill me-3"></i>Portal del Apoderado</h1>
+    <p class="text-muted">Consulta el avance académico y bienestar de tus estudiantes a cargo.</p>
+  </div>
+
+  @if (error) {
+    <div class="glass-alert alert-danger d-flex align-items-center mb-4">
+      <i class="bi bi-exclamation-octagon-fill fs-4 me-3"></i>
+      <div>{{ error }}</div>
+    </div>
+  }
+
+  @if (cargando && !resumen && estudiantes.length === 0) {
+    <div class="loading-state glass-panel text-center py-5">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-3 text-muted">Cargando información...</p>
+    </div>
+  }
+
+  @if (!cargando && estudiantes.length === 0 && !error) {
+    <div class="glass-panel text-center py-5">
+      <i class="bi bi-person-x fs-1 text-muted"></i>
+      <h3 class="mt-3 text-white">No se encontraron estudiantes</h3>
+      <p class="text-muted">No tienes estudiantes vinculados a tu cuenta actualmente.</p>
+    </div>
+  }
+
+  @if (estudiantes.length > 0) {
+    <div class="row gx-4">
+      <!-- Sidebar de Estudiantes -->
+      <div class="col-lg-4 mb-4">
+        <h4 class="section-title"><i class="bi bi-people"></i> Estudiantes Vinculados</h4>
+        <div class="student-list d-flex flex-column gap-3">
+          @for (est of estudiantes; track est.id) {
+            <button 
+              class="student-card glass-panel text-start w-100" 
+              [class.active]="seleccionado === est.id"
+              (click)="seleccionar(est.id)">
+              <div class="d-flex align-items-center gap-3">
+                <div class="avatar-circle">
+                  {{ est.nombre.charAt(0) }}
+                </div>
+                <div>
+                  <div class="student-name">{{ est.nombre }} {{ est.apellido }}</div>
+                  <div class="student-info">
+                    <span class="text-muted"><i class="bi bi-diagram-2"></i> Vínculo: {{ est.parentesco }}</span>
+                  </div>
+                </div>
+              </div>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Resumen del Estudiante -->
+      <div class="col-lg-8">
+        @if (cargando && seleccionado) {
+          <div class="loading-state glass-panel text-center py-5">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-3 text-muted">Cargando expediente...</p>
+          </div>
+        }
+
+        @if (!cargando && resumen) {
+          <div class="glass-panel resumen-panel">
+            <div class="resumen-header d-flex justify-content-between align-items-center mb-4">
+              <div>
+                <h2 class="mb-1">{{ resumen.estudiante.nombre }} {{ resumen.estudiante.apellido }}</h2>
+                <div class="d-flex gap-3">
+                  <span class="text-muted"><i class="bi bi-shield-check text-success"></i> Permiso Retiro: {{ resumen.estudiante.permisoRetiro ? 'Sí' : 'No' }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Navegación interna (Pills) -->
+            <ul class="nav nav-pills custom-pills mb-4" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" [class.active]="pestana === 'notas'" (click)="pestana = 'notas'" type="button" role="tab">
+                  <i class="bi bi-journal-text me-2"></i>Calificaciones
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" [class.active]="pestana === 'asistencia'" (click)="pestana = 'asistencia'" type="button" role="tab">
+                  <i class="bi bi-calendar-check me-2"></i>Asistencia
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" [class.active]="pestana === 'permisos'" (click)="pestana = 'permisos'" type="button" role="tab">
+                  <i class="bi bi-envelope-paper me-2"></i>Justificaciones y permisos
+                </button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link" [class.active]="pestana === 'documentos'" (click)="pestana = 'documentos'" type="button" role="tab">
+                  <i class="bi bi-folder2-open me-2"></i>Documentos
+                </button>
+              </li>
+            </ul>
+
+            <div class="tab-content" id="portalTabContent">
+              <!-- Calificaciones -->
+              @if (pestana === 'notas') {
+              <div class="tab-pane show active" role="tabpanel">
+                @if (resumen.notas.length === 0) {
+                  <p class="text-muted text-center py-4">No hay calificaciones registradas aún.</p>
+                } @else {
+                  <div class="table-responsive">
+                    <table class="glass-table">
+                      <thead>
+                        <tr>
+                          <th>Evaluación</th>
+                          <th>Calificación Literal</th>
+                          <th>Puntaje</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (nota of resumen.notas; track nota) {
+                          <tr>
+                            <td>{{ nota.evaluacion || 'Evaluación Continua' }}</td>
+                            <td>
+                              <span class="literal-badge" [ngClass]="getLiteralClass(nota.calificacion || nota.valor)">
+                                {{ getLiteralValue(nota.calificacion || nota.valor) }}
+                              </span>
+                            </td>
+                            <td class="text-muted">{{ nota.calificacion || nota.valor || '-' }} / 20</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+
+              <!-- Asistencias -->
+              }
+              @if (pestana === 'asistencia') {
+              <div class="tab-pane show active" role="tabpanel">
+                @if (resumen.asistencias.length === 0) {
+                  <p class="text-muted text-center py-4">No hay registros de inasistencias o tardanzas.</p>
+                } @else {
+                  <div class="table-responsive">
+                    <table class="glass-table">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Estado</th>
+                          <th>Justificación</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (asis of resumen.asistencias; track asis) {
+                          <tr>
+                            <td>{{ asis.fecha | date:'dd/MM/yyyy' }}</td>
+                            <td>
+                              <span class="badge" 
+                                    [class.bg-danger]="asis.estado === 'FALTA'" 
+                                    [class.bg-warning]="asis.estado === 'TARDE' || asis.estado === 'TARDANZA'" [class.bg-success]="asis.estado === 'JUSTIFICADO'">
+                                {{ asis.estado }}
+                              </span>
+                            </td>
+                            <td class="text-muted">{{ asis.justificacion || 'No especificada' }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+
+              <!-- Documentos -->
+              }
+              @if (pestana === 'permisos') {
+              <div class="tab-pane show active" role="tabpanel">
+                <form class="permiso-form glass-panel mb-4" (ngSubmit)="solicitarPermiso()" #pf="ngForm">
+                  <h3>Nueva solicitud</h3>
+                  <p class="text-muted small">El auxiliar o el tutor revisa las justificaciones y papeletas. Los permisos de varios días los aprueba Dirección.</p>
+                  <div class="permiso-grid">
+                    <div>
+                      <label class="form-label" for="p-tipo">Tipo</label>
+                      <select id="p-tipo" class="form-select" name="tipo" [(ngModel)]="nuevo.tipo">
+                        <option value="JUSTIFICACION">Justificar falta o tardanza</option>
+                        <option value="PAPELETA_SALIDA">Recoger hoy durante la jornada</option>
+                        <option value="PERMISO">Permiso de varios días</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="form-label" for="p-desde">{{ nuevo.tipo === 'PAPELETA_SALIDA' ? 'Fecha' : 'Desde' }}</label>
+                      <input id="p-desde" class="form-control" type="date" name="desde" required [(ngModel)]="nuevo.fechaDesde">
+                    </div>
+                    @if (nuevo.tipo === 'PAPELETA_SALIDA') {
+                      <div>
+                        <label class="form-label" for="p-hora">Hora</label>
+                        <input id="p-hora" class="form-control" type="time" name="hora" required [(ngModel)]="nuevo.horaSalida">
+                      </div>
+                      <div>
+                        <label class="form-label" for="p-recoge">Quién recoge</label>
+                        <input id="p-recoge" class="form-control" name="recoge" required maxlength="150" [(ngModel)]="nuevo.personaRecoge">
+                      </div>
+                      <div>
+                        <label class="form-label" for="p-dni">DNI de quien recoge</label>
+                        <input id="p-dni" class="form-control" name="dni" required pattern="\d{8}" maxlength="8" inputmode="numeric" [(ngModel)]="nuevo.dniPersonaRecoge">
+                      </div>
+                    } @else {
+                      <div>
+                        <label class="form-label" for="p-hasta">Hasta</label>
+                        <input id="p-hasta" class="form-control" type="date" name="hasta" [(ngModel)]="nuevo.fechaHasta" [min]="nuevo.fechaDesde">
+                      </div>
+                    }
+                    <div class="ancho">
+                      <label class="form-label" for="p-motivo">Motivo</label>
+                      <textarea id="p-motivo" class="form-control" name="motivo" rows="2" required minlength="5" maxlength="400" [(ngModel)]="nuevo.motivo"></textarea>
+                    </div>
+                  </div>
+                  @if (mensajePermiso) { <div class="alert mt-3 mb-0" [class.alert-success]="!errorPermiso" [class.alert-danger]="errorPermiso">{{ mensajePermiso }}</div> }
+                  <div class="d-flex justify-content-end mt-3">
+                    <button class="btn btn-primary" type="submit" [disabled]="pf.invalid || enviandoPermiso">{{ enviandoPermiso ? 'Enviando…' : 'Enviar solicitud' }}</button>
+                  </div>
+                </form>
+                @if (permisosDelHijo().length === 0) {
+                  <p class="text-muted text-center py-3">Aún no hay solicitudes para este estudiante.</p>
+                } @else {
+                  <div class="table-responsive">
+                    <table class="glass-table">
+                      <thead><tr><th>Tipo</th><th>Fechas</th><th>Motivo</th><th>Estado</th></tr></thead>
+                      <tbody>
+                        @for (p of permisosDelHijo(); track p.id) {
+                          <tr>
+                            <td>{{ tipos[p.tipo] }}</td>
+                            <td>{{ p.fechaDesde | date:'dd/MM' }}@if (p.fechaHasta !== p.fechaDesde) { al {{ p.fechaHasta | date:'dd/MM' }} }@if (p.horaSalida) { · {{ p.horaSalida.slice(0, 5) }} }</td>
+                            <td>{{ p.motivo }}@if (p.observacionRevision) { <br><small class="text-muted">{{ p.observacionRevision }}</small> }</td>
+                            <td><span class="estado-chip" [attr.data-estado]="p.estado">{{ p.estado }}</span></td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+              </div>
+              }
+              @if (pestana === 'documentos') {
+              <div class="tab-pane show active" role="tabpanel">
+                @if (resumen.documentos.length === 0) {
+                  <p class="text-muted text-center py-4">No hay documentos compartidos.</p>
+                } @else {
+                  <div class="document-grid">
+                    @for (doc of resumen.documentos; track doc.id) {
+                      <div class="document-card glass-panel d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center gap-3">
+                          <div class="doc-icon"><i class="bi bi-file-earmark-pdf"></i></div>
+                          <div>
+                            <div class="doc-name">{{ doc.nombreArchivo }}</div>
+                            <div class="doc-meta text-muted small">{{ doc.tipoDocumento }} • {{ doc.fechaSubida | date:'dd/MM/yyyy' }}</div>
+                          </div>
+                        </div>
+                        <button class="btn-icon" (click)="descargar(doc.id, doc.nombreArchivo)" title="Descargar">
+                          <i class="bi bi-download"></i>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

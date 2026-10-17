@@ -2,17 +2,25 @@ package com.example.demo.dto;
 
 import java.time.LocalTime;
 
+import jakarta.validation.constraints.AssertTrue;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
+
 public class HorarioDTO {
     private Long id;
+    @NotBlank
+    @Pattern(regexp = "LUNES|MARTES|MIERCOLES|JUEVES|VIERNES|SABADO")
     private String diaSemana;
-    private LocalTime horaInicio;
-    private LocalTime horaFin;
-    private String turno;
-    private Long aulaId;
-    private Long seccionId;
-    private Long cursoId;
+    @NotNull private LocalTime horaInicio;
+    @NotNull private LocalTime horaFin;
+    @NotBlank @Pattern(regexp = "MANANA|TARDE") private String turno;
+    @NotNull @Positive private Long aulaId;
+    @NotNull @Positive private Long seccionId;
+    @NotNull @Positive private Long cursoId;
     private String cursoNombre;
-    private Long docenteId;
+    @NotNull @Positive private Long docenteId;
     private String docenteNombre;
 
     public HorarioDTO() {}
@@ -39,4 +47,9 @@ public class HorarioDTO {
     public void setDocenteId(Long docenteId) { this.docenteId = docenteId; }
     public String getDocenteNombre() { return docenteNombre; }
     public void setDocenteNombre(String docenteNombre) { this.docenteNombre = docenteNombre; }
+
+    @AssertTrue(message = "La hora de fin debe ser posterior a la hora de inicio")
+    public boolean isRangoHorarioValido() {
+        return horaInicio == null || horaFin == null || horaFin.isAfter(horaInicio);
+    }
 }

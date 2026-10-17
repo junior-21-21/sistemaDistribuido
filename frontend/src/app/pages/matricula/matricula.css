@@ -1,0 +1,85 @@
+.stepper-container {
+  padding: 0 2rem;
+}
+
+.stepper-line {
+  position: absolute;
+  top: 24px;
+  left: 2rem;
+  right: 2rem;
+  height: 2px;
+  background-color: rgba(var(--overlay-rgb), 0.1);
+  z-index: 1;
+}
+
+.stepper-step {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 80px;
+}
+
+.stepper-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #1a1e23;
+  border: 2px solid rgba(var(--overlay-rgb), 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  color: #6c757d;
+  transition: all 0.3s ease;
+}
+
+.stepper-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #6c757d;
+  transition: all 0.3s ease;
+  text-align: center;
+}
+
+/* Active State */
+.stepper-step.active .stepper-circle {
+  background-color: rgba(0, 210, 150, 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  box-shadow: 0 0 15px rgba(0, 210, 150, 0.3);
+}
+
+.stepper-step.active .stepper-title {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+/* Completed State */
+.stepper-step.completed .stepper-circle {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  color: #fff;
+}
+
+.stepper-step.completed .stepper-title {
+  color: var(--ink);
+}
+
+.stepper-step:not(.active):not(.completed):hover .stepper-circle {
+  border-color: rgba(var(--overlay-rgb), 0.5);
+  color: var(--ink-2);
+}
+
+.blur-circle {
+  pointer-events: none;
+  z-index: 0;
+}
+
+.step-content {
+  position: relative;
+  z-index: 1;
+}

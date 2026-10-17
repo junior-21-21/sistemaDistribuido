@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>PAD — Plataforma Académica Distribuida | I.E.P. Huamanga</title>
+    <title>PAD · I.E.P. Huamanga</title>
     <meta
       name="description"
       content="Plataforma Académica Distribuida para gestión escolar. Matrículas, notas, asistencia y más."
@@ -10,22 +10,25 @@
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap"
-      rel="stylesheet"
-    />
-    <!-- Bootstrap Icons -->
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-    />
     <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#1f4d3a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Caveat:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script>
+      // Aplica el tema antes de pintar para evitar parpadeos.
+      (function () {
+        var tema = null;
+        try { tema = localStorage.getItem('pad_tema'); } catch (e) {}
+        if (tema !== 'light' && tema !== 'dark') {
+          tema = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', tema);
+      })();
+    </script>
   </head>
   <body>
     <app-root></app-root>
-    <noscript>Please enable JavaScript to continue using this application.</noscript>
+    <noscript>Activa JavaScript para usar la plataforma.</noscript>
   </body>
 </html>

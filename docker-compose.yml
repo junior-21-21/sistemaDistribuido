@@ -1,15 +1,33 @@
-version: '3.9'
-
 # ===================================================
 # Plataforma Académica Distribuida — Docker Compose
 # ===================================================
 # Uso:
-#   docker-compose up -d          (levantar todo)
-#   docker-compose up -d sqlserver (solo la BD primero)
-#   docker-compose logs -f servicio-estudiantes
+#   docker compose up --build -d          (levantar todo)
+#   docker compose ps                     (todos deben quedar "healthy")
+#   docker compose logs -f servicio-estudiantes
 # ===================================================
 
 services:
+
+  rabbitmq:
+    image: rabbitmq:4.3-management-alpine
+    container_name: pad-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:-pad}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:-pad-local-cambiar}"
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - pad-network
+    restart: unless-stopped
 
   # ── Base de Datos PostgreSQL ──────────────────────
   postgres:
@@ -17,9 +35,9 @@ services:
     container_name: pad-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./backend/init-postgres-dbs.sh:/docker-entrypoint-initdb.d/init-postgres-dbs.sh
@@ -39,15 +57,36 @@ services:
       dockerfile: Dockerfile
     container_name: pad-api-gateway
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
       SPRING_PROFILES_ACTIVE: docker
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      CORS_ALLOWED_ORIGIN_PATTERNS: "${CORS_ALLOWED_ORIGIN_PATTERNS:-http://localhost:*,http://sistemadistribuido2026.com,http://www.sistemadistribuido2026.com}"
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
     depends_on:
-      - servicio-estudiantes
-      - servicio-cursos
-      - servicio-evaluaciones
-      - servicio-disciplina
-      - servicio-reportes
+      servicio-estudiantes:
+        condition: service_healthy
+      servicio-cursos:
+        condition: service_healthy
+      servicio-evaluaciones:
+        condition: service_healthy
+      servicio-disciplina:
+        condition: service_healthy
+      servicio-reportes:
+        condition: service_healthy
+      servicio-notificaciones:
+        condition: service_healthy
+      servicio-horarios:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
     networks:
       - pad-network
     restart: unless-stopped
@@ -58,15 +97,43 @@ services:
       context: ./backend/servicio-estudiantes
       dockerfile: Dockerfile
     container_name: pad-estudiantes
-    ports:
-      - "8082:8082"
+    expose:
+      - "8082"
     environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
       DB_USERNAME: postgres
-      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
+      SEED_DEMO_DATA: "${SEED_DEMO_DATA:-false}"
+      BOOTSTRAP_ADMIN_USERNAME: "${BOOTSTRAP_ADMIN_USERNAME:-director}"
+      BOOTSTRAP_ADMIN_PASSWORD: "${BOOTSTRAP_ADMIN_PASSWORD:-}"
+      BOOTSTRAP_ADMIN_EMAIL: "${BOOTSTRAP_ADMIN_EMAIL:-director@localhost}"
+      BOOTSTRAP_SYSTEM_ADMIN_USERNAME: "${BOOTSTRAP_SYSTEM_ADMIN_USERNAME:-admin}"
+      BOOTSTRAP_SYSTEM_ADMIN_PASSWORD: "${BOOTSTRAP_SYSTEM_ADMIN_PASSWORD:-}"
+      BOOTSTRAP_SYSTEM_ADMIN_EMAIL: "${BOOTSTRAP_SYSTEM_ADMIN_EMAIL:-admin@localhost}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_estudiantes
+      EVALUACIONES_URL: http://servicio-evaluaciones:8084
+      NOTIFICACIONES_URL: http://servicio-notificaciones:8086
+      CURSOS_URL: http://servicio-cursos:8083
+      DATA_CONSENT_POLICY_VERSION: "${DATA_CONSENT_POLICY_VERSION:-2026-01}"
+      INGRESO_LIMITE_MANANA: "${INGRESO_LIMITE_MANANA:-07:45}"
+      INGRESO_LIMITE_TARDE: "${INGRESO_LIMITE_TARDE:-13:45}"
+      INGRESO_CAMBIO_TURNO: "${INGRESO_CAMBIO_TURNO:-12:30}"
+      INGRESO_NOTIFICAR: "${INGRESO_NOTIFICAR:-TARDANZAS}"
+      NOTIFICATIONS_ENABLED: "true"
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
     networks:
       - pad-network
     restart: unless-stopped
@@ -79,15 +146,28 @@ services:
       context: ./backend/servicio-cursos
       dockerfile: Dockerfile
     container_name: pad-cursos
-    ports:
-      - "8083:8083"
+    expose:
+      - "8083"
     environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
       DB_USERNAME: postgres
-      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
+      SEED_DEMO_DATA: "${SEED_DEMO_DATA:-false}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_cursos
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
     networks:
       - pad-network
     restart: unless-stopped
@@ -98,15 +178,30 @@ services:
       context: ./backend/servicio-evaluaciones
       dockerfile: Dockerfile
     container_name: pad-evaluaciones
-    ports:
-      - "8084:8084"
+    expose:
+      - "8084"
     environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
       DB_USERNAME: postgres
-      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_evaluaciones
+      NOTIFICACIONES_URL: http://servicio-notificaciones:8086
+      CURSOS_URL: http://servicio-cursos:8083
+      NOTIFICATIONS_ENABLED: "true"
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
     networks:
       - pad-network
     restart: unless-stopped
@@ -117,15 +212,32 @@ services:
       context: ./backend/servicio-disciplina
       dockerfile: Dockerfile
     container_name: pad-disciplina
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
     environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
       DB_USERNAME: postgres
-      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_disciplina
+      NOTIFICACIONES_URL: http://servicio-notificaciones:8086
+      NOTIFICATIONS_ENABLED: "true"
+      REPORTES_URL: http://servicio-reportes:8085
+      CURSOS_URL: http://servicio-cursos:8083
+      ACTIVITIES_ENABLED: "true"
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
     networks:
       - pad-network
     restart: unless-stopped
@@ -136,15 +248,24 @@ services:
       context: ./backend/servicio-reportes
       dockerfile: Dockerfile
     container_name: pad-reportes
-    ports:
-      - "8085:8085"
+    expose:
+      - "8085"
     environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
       DB_USERNAME: postgres
-      DB_PASSWORD: "${DB_PASSWORD:-PAD_Secure#2026}"
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_reportes
       ESTUDIANTES_URL: http://servicio-estudiantes:8082
+      CURSOS_URL: http://servicio-cursos:8083
       EVALUACIONES_URL: http://servicio-evaluaciones:8084
       DISCIPLINA_URL: http://servicio-disciplina:8081
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
+      INTEGRIDAD_INITIAL_DELAY_MS: "${INTEGRIDAD_INITIAL_DELAY_MS:-90000}"
+      INTEGRIDAD_INTERVAL_MS: "${INTEGRIDAD_INTERVAL_MS:-21600000}"
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
     depends_on:
       postgres:
         condition: service_healthy
@@ -152,9 +273,188 @@ services:
         condition: service_started
       servicio-disciplina:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
     networks:
       - pad-network
     restart: unless-stopped
+
+  # ── Servicio Horarios / motor Timefold (Puerto 8088) ─
+  servicio-horarios:
+    build:
+      context: ./backend/servicio-horarios
+      dockerfile: Dockerfile
+    container_name: pad-horarios
+    expose:
+      - "8088"
+    environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_horarios
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  servicio-notificaciones:
+    build:
+      context: ./backend/servicio-notificaciones
+      dockerfile: Dockerfile
+    container_name: pad-notificaciones
+    expose:
+      - "8086"
+    environment:
+      # Hora oficial del colegio: los LocalDateTime.now() del servicio quedan en hora de Lima
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=America/Lima"
+      DB_USERNAME: postgres
+      DB_PASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      JWT_SECRET: "${JWT_SECRET:?Configura JWT_SECRET en el archivo .env}"
+      INTERNAL_API_KEY: "${INTERNAL_API_KEY:-${JWT_SECRET}}"
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/academico_notificaciones
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: "${RABBITMQ_USER:-pad}"
+      RABBITMQ_PASSWORD: "${RABBITMQ_PASSWORD:-pad-local-cambiar}"
+      ESTUDIANTES_URL: http://servicio-estudiantes:8082
+      NOTIFICATIONS_MODE: "${NOTIFICATIONS_MODE:-SIMULATED}"
+      NOTIFICATIONS_EMAIL_WEBHOOK_URL: "${NOTIFICATIONS_EMAIL_WEBHOOK_URL:-}"
+      NOTIFICATIONS_SMS_WEBHOOK_URL: "${NOTIFICATIONS_SMS_WEBHOOK_URL:-}"
+      NOTIFICATIONS_WHATSAPP_WEBHOOK_URL: "${NOTIFICATIONS_WHATSAPP_WEBHOOK_URL:-}"
+      NOTIFICATIONS_WEBHOOK_TOKEN: "${NOTIFICATIONS_WEBHOOK_TOKEN:-}"
+      NOTIFICATIONS_REQUIRED_CHANNELS: "${NOTIFICATIONS_REQUIRED_CHANNELS:-EMAIL,SMS,WHATSAPP}"
+      ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      TRACING_SAMPLE_RATE: "${TRACING_SAMPLE_RATE:-0.0}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      servicio-estudiantes:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health | grep -q UP || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 150s
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v3.13.0
+    container_name: pad-prometheus
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./ops/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.2.0
+    container_name: pad-grafana
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_USER:-admin}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:-admin-local-cambiar}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./ops/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  zipkin:
+    image: openzipkin/zipkin:3.6.1
+    container_name: pad-zipkin
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:9411:9411"
+    networks:
+      - pad-network
+    restart: unless-stopped
+
+  backup-postgres:
+    build:
+      context: ./ops/backup
+      dockerfile: Dockerfile
+    container_name: pad-backup-postgres
+    profiles: ["operations"]
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+      BACKUP_ENCRYPTION_KEY: "${BACKUP_ENCRYPTION_KEY:-}"
+      BACKUP_INTERVAL_HOURS: "${BACKUP_INTERVAL_HOURS:-24}"
+      BACKUP_RETENTION_DAYS: "${BACKUP_RETENTION_DAYS:-30}"
+      BACKUP_RUN_ONCE: "${BACKUP_RUN_ONCE:-false}"
+    volumes:
+      - postgres-backups:/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+
+  demo-data:
+    image: postgres:15-alpine
+    container_name: pad-demo-data
+    profiles: ["demo"]
+    environment:
+      PGPASSWORD: "${DB_PASSWORD:?Configura DB_PASSWORD en el archivo .env}"
+    volumes:
+      - ./ops/demo/seed-demo.sql:/demo/seed-demo.sql:ro
+      - ./ops/demo/seed-secundaria-2026.sql:/demo/seed-secundaria-2026.sql:ro
+      - ./ops/demo/verify-secundaria-2026.sql:/demo/verify-secundaria-2026.sql:ro
+    command:
+      - psql
+      - -h
+      - postgres
+      - -U
+      - postgres
+      - -v
+      - "estudiantes_por_seccion=${DEMO_STUDENTS_PER_SECTION:-20}"
+      - -v
+      - "cargar_horarios=${DEMO_LOAD_SCHEDULES:-true}"
+      - -v
+      - "reiniciar_horarios=${DEMO_RESET_SCHEDULES:-false}"
+      - -f
+      - /demo/seed-demo.sql
+      - -f
+      - /demo/seed-secundaria-2026.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pad-network
+    restart: "no"
 
   # ── Frontend Angular (Puerto 80) ──────────────────
   frontend:
@@ -163,9 +463,15 @@ services:
       dockerfile: Dockerfile
     container_name: pad-frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
-      - api-gateway
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
       - pad-network
     restart: unless-stopped
@@ -175,10 +481,12 @@ services:
     image: dpage/pgadmin4
     container_name: pad-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: "${PGADMIN_EMAIL:-admin@localhost}"
+      PGADMIN_DEFAULT_PASSWORD: "${PGADMIN_PASSWORD:?Configura PGADMIN_PASSWORD en el archivo .env}"
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
+    profiles:
+      - tools
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,6 +498,14 @@ volumes:
   postgres-data:
     driver: local
   uploads-data:
+    driver: local
+  rabbitmq-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  postgres-backups:
     driver: local
 
 networks:

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="es">
+<head><meta charset="UTF-8"><title>Secciones</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-100 min-h-screen">
+<aside th:replace="~{fragments/nav :: nav}"></aside>
+<div class="ml-64 min-h-screen flex flex-col">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-orange-100 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            </div>
+            <div><h1 class="text-lg font-bold text-slate-800">Secciones</h1><p class="text-xs text-slate-400">Grupos por curso y periodo</p></div>
+        </div>
+        <a href="/secciones/nuevo" sec:authorize="hasRole('COORDINADOR')" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Nueva Seccion
+        </a>
+    </header>
+    <main class="flex-1 p-6">
+        <div th:if="${success}" class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl mb-4 text-sm"><svg class="w-5 h-5 text-emerald-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg><span th:text="${success}"></span></div>
+        <div th:if="${error}" class="flex items-center gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl mb-4 text-sm"><svg class="w-5 h-5 text-red-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/></svg><span th:text="${error}"></span></div>
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-800 text-slate-300 text-xs uppercase tracking-wide">
+                        <th class="px-5 py-3.5 text-left font-semibold w-10">#</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Sec</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Curso</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Carrera</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Docente</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Periodo</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Aula</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Cupo</th>
+                        <th class="px-5 py-3.5 text-right font-semibold" sec:authorize="hasRole('COORDINADOR')">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr th:if="${#lists.isEmpty(secciones)}"><td colspan="9" class="px-5 py-12 text-center text-slate-400">Sin secciones registradas</td></tr>
+                    <tr th:each="s, i : ${secciones}" class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-3.5 text-slate-400 font-mono text-xs" th:text="${i.count}"></td>
+                        <td class="px-5 py-3.5"><span class="bg-orange-50 text-orange-700 font-bold text-xs px-2 py-1 rounded-lg" th:text="${s.nombre}"></span></td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800" th:text="${s.curso.nombre}"></td>
+                        <td class="px-5 py-3.5 text-slate-600" th:text="${s.curso.ciclo.carrera.nombre}"></td>
+                        <td class="px-5 py-3.5 text-slate-600" th:text="${s.docente != null ? s.docente.nombreCompleto : '—'}"></td>
+                        <td class="px-5 py-3.5">
+                            <span th:class="${s.periodo.estado == 'ABIERTO'} ? 'bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full' : 'bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded-full'"
+                                  th:text="${s.periodo.nombre}"></span>
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-600" th:text="${s.aula != null ? s.aula.codigo : '—'}"></td>
+                        <td class="px-5 py-3.5 text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                <div class="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div class="h-full bg-indigo-500 rounded-full transition-all"
+                                         th:style="'width: ' + ${s.cupoMaximo > 0 ? (s.cupoOcupado * 100 / s.cupoMaximo) : 0} + '%'"></div>
+                                </div>
+                                <span class="text-xs text-slate-500" th:text="${s.cupoOcupado} + '/' + ${s.cupoMaximo}"></span>
+                            </div>
+                        </td>
+                        <td class="px-5 py-3.5 text-right" sec:authorize="hasRole('COORDINADOR')">
+                            <div class="flex items-center justify-end gap-2">
+                                <a th:href="@{/secciones/editar/{id}(id=${s.id})}" class="flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>Editar</a>
+                                <a th:href="@{/secciones/eliminar/{id}(id=${s.id})}" class="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition" onclick="return confirm('¿Eliminar?')"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>Eliminar</a>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+</body>
+</html>

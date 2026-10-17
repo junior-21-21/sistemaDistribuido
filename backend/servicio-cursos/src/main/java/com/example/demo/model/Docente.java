@@ -3,6 +3,7 @@ package com.example.demo.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -37,6 +38,13 @@ public class Docente {
 
     @Column
     private String especialidad;
+
+    @Column(length = 100)
+    private String username;
+
+    @Min(value = 1, message = "Las horas contratadas deben ser mayores a cero")
+    @Column(name = "horas_semanales_contratadas", nullable = false)
+    private Integer horasSemanalesContratadas = 30;
 
     @Column(nullable = false)
     private String estado = "ACTIVO";

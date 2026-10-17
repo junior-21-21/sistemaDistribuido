@@ -1,0 +1,1 @@
+ALTER TABLE estudiantes ALTER COLUMN email DROP NOT NULL;

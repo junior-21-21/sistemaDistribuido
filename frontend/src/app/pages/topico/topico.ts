@@ -1,61 +1,141 @@
-import { Component } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin } from 'rxjs';
 
-interface FichaMedica {
+import { EstudianteService } from '../../services/estudiante.service';
+import { AtencionMedica, DestinoAtencion, FichaMedica, TopicoService } from '../../services/topico.service';
+import { LiveBanner } from '../../shared/live-banner/live-banner';
+
+interface FichaVista extends FichaMedica {
   id: number;
   nombre: string;
   apellido: string;
   grado: string;
-  tipoSangre: string;
-  alergias: string;
-  condiciones: string;
-  ultimaAtencion: string;
 }
 
 @Component({
   selector: 'app-topico',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [LiveBanner, CommonModule, FormsModule],
   templateUrl: './topico.html',
   styleUrl: './topico.css'
 })
-export class Topico {
+export class Topico implements OnInit {
+  private readonly topicoService = inject(TopicoService);
+  private readonly estudianteService = inject(EstudianteService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
   searchTerm = '';
-  selectedFicha: FichaMedica | null = null;
+  fichas: FichaVista[] = [];
+  selectedFicha: FichaVista | null = null;
+  atenciones: AtencionMedica[] = [];
+  loading = true;
+  atencionesLoading = false;
+  submitting = false;
+  error = '';
   showNuevaAtencion = false;
-  nuevaAtencion = { motivo: '', diagnostico: '', tratamiento: '' };
+  nuevaAtencion = { motivo: '', diagnostico: '', tratamiento: '', destino: 'RETORNA_AULA' as DestinoAtencion, establecimientoSalud: '', cubiertoSis: false, apoderadoAvisado: false };
   savedMessage = '';
 
-  fichas: FichaMedica[] = [
-    { id: 1, nombre: 'Rodrigo', apellido: 'Quispe Sullca', grado: '1ro A', tipoSangre: 'O+', alergias: 'Ninguna', condiciones: 'Ninguna', ultimaAtencion: '15/08/2026' },
-    { id: 2, nombre: 'Valentina', apellido: 'Huaman Flores', grado: '1ro A', tipoSangre: 'A+', alergias: 'Polen, polvo', condiciones: 'Asma leve', ultimaAtencion: '20/08/2026' },
-    { id: 3, nombre: 'Sebastian', apellido: 'Ccahuana Puma', grado: '1ro B', tipoSangre: 'B+', alergias: 'Ninguna', condiciones: 'Ninguna', ultimaAtencion: '10/07/2026' },
-    { id: 4, nombre: 'Camila', apellido: 'Rojas Suni', grado: '4to A', tipoSangre: 'AB+', alergias: 'Penicilina', condiciones: 'Rinitis alérgica', ultimaAtencion: '22/08/2026' },
-    { id: 5, nombre: 'Daniel', apellido: 'Torres Huanca', grado: '4to A', tipoSangre: 'O-', alergias: 'Mariscos', condiciones: 'Ninguna', ultimaAtencion: '01/08/2026' },
-  ];
+  ngOnInit(): void {
+    this.cargarFichas();
+  }
 
-  get fichasFiltradas() {
-    if (!this.searchTerm) return this.fichas;
-    const term = this.searchTerm.toLowerCase();
-    return this.fichas.filter(f =>
-      f.nombre.toLowerCase().includes(term) ||
-      f.apellido.toLowerCase().includes(term) ||
-      f.grado.toLowerCase().includes(term)
+  get fichasFiltradas(): FichaVista[] {
+    const term = this.searchTerm.trim().toLocaleLowerCase('es');
+    if (!term) return this.fichas;
+    return this.fichas.filter(ficha =>
+      [ficha.nombre, ficha.apellido, ficha.grado]
+        .some(valor => valor.toLocaleLowerCase('es').includes(term))
     );
   }
 
-  seleccionar(ficha: FichaMedica) {
+  seleccionar(ficha: FichaVista): void {
     this.selectedFicha = ficha;
     this.showNuevaAtencion = false;
+    this.error = '';
+    this.atencionesLoading = true;
+    this.topicoService.listarAtenciones(ficha.id).subscribe({
+      next: atenciones => {
+        this.atenciones = atenciones;
+        this.atencionesLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.atenciones = [];
+        this.atencionesLoading = false;
+        this.error = 'No se pudo cargar el historial de atenciones.';
+        this.cdr.detectChanges();
+      }
+    });
   }
 
-  registrarAtencion() {
-    setTimeout(() => {
-      this.savedMessage = 'Atención registrada correctamente ✓';
-      this.showNuevaAtencion = false;
-      this.nuevaAtencion = { motivo: '', diagnostico: '', tratamiento: '' };
-      setTimeout(() => this.savedMessage = '', 3000);
-    }, 1000);
+  registrarAtencion(): void {
+    if (!this.selectedFicha || !this.formularioValido() || this.submitting) return;
+    this.submitting = true;
+    this.error = '';
+    this.topicoService.registrarAtencion({
+      fichaMedicaId: this.selectedFicha.id,
+      ...this.nuevaAtencion
+    }).subscribe({
+      next: atencion => {
+        this.atenciones = [atencion, ...this.atenciones];
+        this.submitting = false;
+        this.savedMessage = 'Atención registrada correctamente.';
+        this.showNuevaAtencion = false;
+        this.nuevaAtencion = { motivo: '', diagnostico: '', tratamiento: '', destino: 'RETORNA_AULA' as DestinoAtencion, establecimientoSalud: '', cubiertoSis: false, apoderadoAvisado: false };
+        this.cdr.detectChanges();
+      },
+      error: error => {
+        this.submitting = false;
+        this.error = error.error?.message || 'No se pudo registrar la atención.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  formularioValido(): boolean {
+    return Boolean(
+      this.nuevaAtencion.motivo.trim()
+      && this.nuevaAtencion.diagnostico.trim()
+      && this.nuevaAtencion.tratamiento.trim()
+      && (this.nuevaAtencion.destino !== 'TRASLADO_SALUD' || this.nuevaAtencion.establecimientoSalud.trim())
+    );
+  }
+
+  private cargarFichas(): void {
+    forkJoin({
+      fichas: this.topicoService.listarFichas(),
+      estudiantes: this.estudianteService.getEstudiantes()
+    }).subscribe({
+      next: data => {
+        this.fichas = data.fichas.flatMap(ficha => {
+          if (ficha.id == null) return [];
+          const estudiante = data.estudiantes.find(item => item.id === ficha.estudianteId);
+          if (!estudiante) return [];
+          return [{
+            ...ficha,
+            id: ficha.id,
+            nombre: estudiante.nombre,
+            apellido: estudiante.apellido,
+            grado: `Grado ${estudiante.gradoId} · Sección ${estudiante.seccionId}`
+          }];
+        });
+        this.loading = false;
+        if (this.fichas.length) this.seleccionar(this.fichas[0]);
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.error = 'No se pudieron cargar las fichas médicas.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  /** Recarga pedida desde el aviso de cambios en vivo. */
+  refrescarEnVivo(): void {
+    this.cargarFichas();
   }
 }

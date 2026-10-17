@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ReporteDisciplinarioRepository extends JpaRepository<ReporteDisciplinario, Long> {
     List<ReporteDisciplinario> findByEstudianteId(Long estudianteId);
+    List<ReporteDisciplinario> findBySeccionIdOrderByFechaReporteDesc(Long seccionId);
+    List<ReporteDisciplinario> findAllByOrderByFechaReporteDesc();
 }

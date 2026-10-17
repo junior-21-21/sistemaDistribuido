@@ -1,6 +1,8 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { map } from 'rxjs';
+import { PageResponse } from './estudiante.service';
 
 export interface FichaMedica {
   id?: number;
@@ -21,6 +23,34 @@ export interface FichaMedica {
   ultimaActualizacionPor?: string;
 }
 
+export interface AtencionMedica {
+  id: number;
+  fichaMedicaId: number;
+  estudianteId: number;
+  motivo: string;
+  diagnostico: string;
+  tratamiento: string;
+  fechaAtencion: string;
+  registradoPor: string;
+  apoderadoAvisado?: boolean;
+  destino?: DestinoAtencion;
+  establecimientoSalud?: string | null;
+  cubiertoSis?: boolean | null;
+}
+
+export type DestinoAtencion = 'RETORNA_AULA' | 'RETIRADO_APODERADO' | 'TRASLADO_SALUD';
+
+export interface CrearAtencionMedica {
+  fichaMedicaId: number;
+  motivo: string;
+  diagnostico: string;
+  tratamiento: string;
+  apoderadoAvisado?: boolean;
+  destino?: DestinoAtencion;
+  establecimientoSalud?: string | null;
+  cubiertoSis?: boolean | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TopicoService {
   private http = inject(HttpClient);
@@ -39,5 +69,14 @@ export class TopicoService {
 
   listarFichas(): Observable<FichaMedica[]> {
     return this.http.get<FichaMedica[]>('/api/fichas-medicas');
+  }
+
+  listarAtenciones(fichaMedicaId: number): Observable<AtencionMedica[]> {
+    return this.http.get<PageResponse<AtencionMedica>>(`/api/atenciones-medicas/ficha/${fichaMedicaId}/page`)
+      .pipe(map(page => page.content));
+  }
+
+  registrarAtencion(atencion: CrearAtencionMedica): Observable<AtencionMedica> {
+    return this.http.post<AtencionMedica>('/api/atenciones-medicas', atencion);
   }
 }

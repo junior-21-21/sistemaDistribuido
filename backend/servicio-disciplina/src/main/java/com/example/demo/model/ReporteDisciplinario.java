@@ -26,7 +26,7 @@ public class ReporteDisciplinario {
     @Column(nullable = false)
     private Long estudianteId;
 
-    @Column(nullable = false)
+    @Column
     private Long docenteId;
 
     @Column(nullable = false)
@@ -64,8 +64,34 @@ public class ReporteDisciplinario {
     @Column(name = "fecha_notificacion")
     private LocalDateTime fechaNotificacion;
 
+    @Column(name = "registrado_por", nullable = false, length = 100)
+    private String registradoPor;
+
     @Column(length = 300)
     private String observaciones;
+
+    // --- Protocolo de violencia escolar ---
+    @Column(name = "codigo_siseve", length = 30)
+    private String codigoSiseve;
+
+    @Column(name = "fecha_siseve")
+    private java.time.LocalDate fechaSiseve;
+
+    @Column(name = "citacion_apoderado")
+    private LocalDateTime citacionApoderado;
+
+    @Column(name = "medidas_proteccion", length = 500)
+    private String medidasProteccion;
+
+    /** PSICOLOGIA, DEMUNA, CEM, POLICIA, FISCALIA o CENTRO_SALUD. */
+    @Column(name = "derivacion_externa", length = 20)
+    private String derivacionExterna;
+
+    @Column(name = "fecha_derivacion")
+    private java.time.LocalDate fechaDerivacion;
+
+    @Column(name = "protocolo_actualizado_por", length = 100)
+    private String protocoloActualizadoPor;
 
     @PrePersist
     protected void onCreate() {

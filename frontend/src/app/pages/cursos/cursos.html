@@ -1,0 +1,153 @@
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="h3 mb-1 fw-semibold page-title">Gestión de Cursos</h2>
+      <p class="text-muted small mb-0">Administra el currículo de Secundaria grado por grado</p>
+    </div>
+    
+    <button *ngIf="gradoSeleccionado && !mostrarFormulario" class="btn btn-primary shadow-sm" (click)="abrirFormulario()">
+      <i class="bi bi-plus-lg me-2"></i>Nuevo Curso en {{ gradoSeleccionado.nombre }}
+    </button>
+  </div>
+
+  <div *ngIf="mensaje" class="alert mb-4 shadow-sm" [ngClass]="tipoMensaje === 'success' ? 'alert-success' : 'alert-danger'" role="alert">
+    <div class="d-flex justify-content-between align-items-center">
+      <span>{{ mensaje }}</span>
+      <button type="button" class="btn-close btn-close-white" (click)="limpiarMensaje()"></button>
+    </div>
+  </div>
+
+  <!-- VISTA 1: CAJONES DE GRADOS (SI NO HAY NINGUNO SELECCIONADO) -->
+  <div *ngIf="!gradoSeleccionado" class="row g-4">
+    <div class="col-12 mb-2">
+      <h5 class="fw-bold text-white"><i class="bi bi-layers me-2 text-primary"></i>Selecciona un grado para gestionar sus cursos</h5>
+    </div>
+    
+    <div *ngIf="grados.length === 0 && !cargando" class="col-12 text-center py-5">
+      <i class="bi bi-exclamation-triangle fs-1 text-muted d-block mb-3"></i>
+      <p class="text-muted">No se encontraron grados registrados en el sistema.</p>
+    </div>
+
+    <!-- Cajas de Grados -->
+    <div *ngFor="let grado of grados" class="col-md-6 col-lg-4">
+      <div class="glass-panel p-4 h-100 grado-card hover-lift" (click)="seleccionarGrado(grado)" style="cursor: pointer; border-left: 4px solid var(--primary-color);">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+          <h3 class="h4 fw-bold text-white mb-0">{{ grado.nombre }}</h3>
+          <span class="badge bg-primary-subtle text-primary-glow border border-primary opacity-75">
+            {{ grado.nivel?.nombre || 'Secundaria' }}
+          </span>
+        </div>
+        <p class="text-muted small mb-4">Ingresa aquí para agregar o eliminar cursos exclusivos para los estudiantes de {{ grado.nombre }}.</p>
+        <div class="d-flex justify-content-between align-items-center mt-auto">
+          <span class="text-white-50 small"><i class="bi bi-book me-1"></i> Ver currículo</span>
+          <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTA 2: GESTIÓN DE CURSOS DE UN GRADO ESPECÍFICO -->
+  <div *ngIf="gradoSeleccionado" class="fade-in">
+    
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverAGrados()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a los grados
+    </button>
+
+    <h4 class="text-white mb-4"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Cursos de {{ gradoSeleccionado.nombre }}</h4>
+
+    <!-- Formulario -->
+    <div class="glass-panel mb-4" *ngIf="mostrarFormulario">
+      <div class="card-header bg-transparent border-bottom-0 pt-4 pb-0">
+        <h5 class="card-title fw-semibold text-primary">
+          {{ nuevoCurso.id ? 'Editar' : 'Registrar' }} Curso para {{ gradoSeleccionado.nombre }}
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        <form #cursoForm="ngForm" (ngSubmit)="guardarCurso()">
+          <div class="row g-3">
+            <div class="col-md-3">
+              <label class="form-label text-muted small fw-medium">Código</label>
+              <input type="text" class="form-control" name="codigo" [(ngModel)]="nuevoCurso.codigo" required placeholder="Ej: MAT-1">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label text-muted small fw-medium">Nombre del Curso</label>
+              <input type="text" class="form-control" name="nombre" [(ngModel)]="nuevoCurso.nombre" required placeholder="Ej: Matemática">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label text-muted small fw-medium">Tipo</label>
+              <select class="form-select custom-select" name="tipo" [(ngModel)]="nuevoCurso.tipo" required>
+                <option value="OBLIGATORIO">Obligatorio</option>
+                <option value="ELECTIVO">Electivo</option>
+                <option value="TALLER">Taller Extracurricular</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="d-flex justify-content-end mt-4">
+            <button type="button" class="btn btn-light me-2 fw-medium" (click)="cancelarFormulario()" [disabled]="guardando">Cancelar</button>
+            <button type="submit" class="btn btn-primary px-4 fw-medium shadow-sm btn-ai-glow" [disabled]="!cursoForm.valid || guardando">
+              <span *ngIf="guardando" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              {{ guardando ? 'Guardando...' : 'Guardar Curso' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tabla de Cursos del Grado -->
+    <div class="glass-panel">
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover glass-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th class="ps-4 border-0 text-muted fw-semibold py-3">CÓDIGO</th>
+                <th class="border-0 text-muted fw-semibold py-3">NOMBRE DEL CURSO</th>
+                <th class="border-0 text-muted fw-semibold py-3">TIPO</th>
+                <th class="text-end pe-4 border-0 text-muted fw-semibold py-3">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="cargando">
+                <td colspan="4" class="text-center py-4 text-muted">
+                  <div class="spinner-border text-primary spinner-border-sm me-2" role="status"></div>
+                  Cargando cursos...
+                </td>
+              </tr>
+              <tr *ngIf="!cargando && getCursosDelGradoSeleccionado().length === 0">
+                <td colspan="4" class="text-center py-5 text-muted">
+                  <i class="bi bi-journal-x fs-1 d-block mb-2 opacity-50"></i>
+                  Aún no hay cursos creados para este grado.
+                </td>
+              </tr>
+              <tr *ngFor="let curso of getCursosDelGradoSeleccionado()">
+                <td class="ps-4">
+                  <span class="badge bg-dark border glass-border font-monospace text-white">{{ curso.codigo }}</span>
+                </td>
+                <td>
+                  <span class="fw-medium text-white d-block">{{ curso.nombre }}</span>
+                </td>
+                <td>
+                  <span class="badge" [ngClass]="{
+                    'bg-primary text-white': curso.tipo === 'OBLIGATORIO',
+                    'bg-info text-white': curso.tipo === 'ELECTIVO',
+                    'bg-secondary text-white': curso.tipo === 'TALLER'
+                  }">{{ curso.tipo }}</span>
+                </td>
+                <td class="text-end pe-4">
+                  <button class="btn-action btn-edit shadow-sm" (click)="editarCurso(curso)" title="Editar curso" [disabled]="accionEnCurso === curso.id">
+                    <i class="bi bi-pencil-square"></i>
+                  </button>
+                  <button class="btn-action btn-delete shadow-sm ms-2" (click)="eliminarCurso(curso)" title="Eliminar curso" [disabled]="accionEnCurso === curso.id">
+                    <span *ngIf="accionEnCurso === curso.id" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <i *ngIf="accionEnCurso !== curso.id" class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

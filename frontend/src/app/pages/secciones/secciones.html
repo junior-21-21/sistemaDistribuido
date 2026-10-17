@@ -1,105 +1,216 @@
-<div class="page-container p-4">
+<div class="container-fluid py-4">
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h2 class="page-title mb-1">Gestión de Secciones</h2>
-      <p class="text-muted">Administra las aulas y sus capacidades.</p>
+      <h2 class="h3 mb-1 fw-semibold page-title">Gestión de Secciones</h2>
+      <p class="text-muted small mb-0">Secciones por grado y turno, con su tutor(a) de aula</p>
     </div>
-    <button class="btn btn-primary-custom" (click)="openModal()">
-      <i class="bi bi-plus-lg me-2"></i>Nueva Sección
+    
+    <button *ngIf="gradoSeleccionado" class="btn btn-primary-custom" (click)="openModal()">
+      <i class="bi bi-plus-lg me-2"></i>Nueva Sección en {{ gradoSeleccionado.nombre }}
     </button>
   </div>
 
-  <div class="card glass-card border-0 mb-4 filters-card p-3">
-    <div class="row g-3">
-      <div class="col-md-4">
-        <div class="input-group">
-          <span class="input-group-text bg-transparent border-end-0 custom-border"><i class="bi bi-search text-muted"></i></span>
-          <input type="text" class="form-control border-start-0 custom-input-filter" placeholder="Buscar sección..." [(ngModel)]="searchTerm">
-        </div>
+  <!-- VISTA 1: CAJONES DE GRADOS -->
+  <div *ngIf="!gradoSeleccionado">
+    <div class="row mb-3">
+      <div class="col-12">
+        <h5 class="fw-bold text-white"><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Selecciona un grado para gestionar sus secciones</h5>
       </div>
-      <div class="col-md-4">
-        <select class="form-select custom-select-filter" [(ngModel)]="filterGrado">
-          <option value="">Todos los grados</option>
-          @for (grado of grados; track grado.id) {
-            <option [value]="grado.id">{{ grado.nombre }} - {{ grado.nivelNombre }}</option>
-          }
-        </select>
+    </div>
+    
+    <div *ngIf="grados.length === 0 && !isLoading" class="text-center py-5">
+      <i class="bi bi-exclamation-triangle fs-1 text-muted d-block mb-3"></i>
+      <p class="text-muted">No se encontraron grados registrados.</p>
+    </div>
+
+    <div class="row g-4">
+      <div *ngFor="let grado of grados" class="col-md-6 col-lg-4">
+        <div class="glass-panel p-4 h-100 grado-card hover-lift" (click)="seleccionarGrado(grado)" style="cursor: pointer; border-left: 4px solid var(--primary-color);">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h3 class="h4 fw-bold text-white mb-0">{{ grado.nombre }}</h3>
+            <span class="badge bg-primary-subtle text-primary-glow border border-primary opacity-75">
+              {{ grado.nivelNombre || 'Secundaria' }}
+            </span>
+          </div>
+
+          <div class="d-flex gap-3 mb-3">
+            <div class="turno-mini-badge turno-manana">
+              <i class="bi bi-sun me-1"></i>Mañana: {{ contarSeccionesTurno(grado.id!, 'MANANA') }}
+            </div>
+            <div class="turno-mini-badge turno-tarde">
+              <i class="bi bi-moon me-1"></i>Tarde: {{ contarSeccionesTurno(grado.id!, 'TARDE') }}
+            </div>
+          </div>
+
+          <p class="text-muted small mb-3">{{ contarSeccionesDelGrado(grado.id!) }} secciones registradas en este grado.</p>
+          
+          <div class="d-flex justify-content-between align-items-center mt-auto">
+            <span class="text-white-50 small"><i class="bi bi-people me-1"></i> Ver secciones</span>
+            <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="card glass-card border-0">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table custom-table mb-0">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nombre</th>
-              <th>Grado</th>
-              <th>Turno</th>
-              <th>Capacidad</th>
-              <th>Año</th>
-              <th>Estado</th>
-              <th class="text-end">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (seccion of filteredSecciones; track seccion.id) {
+  <!-- VISTA 2: SECCIONES DE UN GRADO ESPECIFICO -->
+  <div *ngIf="gradoSeleccionado">
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverAGrados()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a los grados
+    </button>
+
+    <h4 class="text-white mb-4"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Secciones de {{ gradoSeleccionado.nombre }}</h4>
+
+    <!-- Turno Manana -->
+    <div class="glass-panel mb-4">
+      <div class="card-header bg-transparent border-bottom border-secondary p-4">
+        <div class="d-flex align-items-center gap-3">
+          <span class="turno-badge turno-manana-lg"><i class="bi bi-sun-fill me-2"></i>Turno Mañana</span>
+          <span class="text-muted small">(07:30 - 13:15)</span>
+          <span class="badge rounded-pill bg-dark text-white ms-auto">{{ getSeccionesManana().length }} secciones</span>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table custom-table mb-0">
+            <thead>
               <tr>
-                <td><span class="text-muted">#{{ seccion.id }}</span></td>
-                <td><span class="fw-semibold text-light">{{ seccion.nombre }}</span></td>
-                <td><span class="badge badge-grado">{{ seccion.gradoNombre }} - {{ seccion.nivelNombre }}</span></td>
-                <td>
-                  <span class="badge" [class.bg-info-custom]="seccion.turno === 'MANANA'" [class.bg-warning-custom]="seccion.turno === 'TARDE'">
-                    {{ seccion.turno === 'MANANA' ? 'Mañana' : 'Tarde' }}
-                  </span>
+                <th class="ps-4">SECCIÓN</th>
+                <th>TUTOR(A)</th>
+                <th>CAPACIDAD</th>
+                <th>AÑO</th>
+                <th>ESTADO</th>
+                <th class="text-end pe-4">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="getSeccionesManana().length === 0">
+                <td colspan="6" class="text-center py-4 text-muted">
+                  <i class="bi bi-journal-x d-block mb-2 opacity-50" style="font-size: 1.5rem;"></i>
+                  No hay secciones en turno mañana para este grado.
                 </td>
-                <td>{{ seccion.capacidadMaxima }} alum.</td>
-                <td>{{ seccion.anioEscolar }}</td>
+              </tr>
+              <tr *ngFor="let seccion of getSeccionesManana()">
+                <td class="ps-4">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="seccion-avatar">{{ seccion.nombre }}</div>
+                    <div>
+                      <span class="fw-semibold text-white d-block">Sección {{ seccion.nombre }}</span>
+                      <small class="text-muted">{{ seccion.gradoNombre }} - {{ seccion.nivelNombre }}</small>
+                    </div>
+                  </div>
+                </td>
                 <td>
-                  @if (seccion.activa) {
-                    <span class="badge bg-success-custom">Activa</span>
+                  @if (puedeAsignarTutor) {
+                    <select class="form-select form-select-sm tutor-select" [ngModel]="seccion.docenteTutorId ?? null"
+                            (ngModelChange)="cambiarTutor(seccion, $event)" [attr.aria-label]="'Tutor de la sección ' + seccion.nombre">
+                      <option [ngValue]="null">Sin tutor</option>
+                      @for (d of docentes; track d.id) { <option [ngValue]="d.id">{{ d.apellido }}, {{ d.nombre }}</option> }
+                    </select>
                   } @else {
-                    <span class="badge bg-danger-custom">Inactiva</span>
+                    <span [class.text-muted]="!seccion.docenteTutorNombre">{{ seccion.docenteTutorNombre || 'Sin tutor' }}</span>
                   }
                 </td>
-                <td class="text-end">
+                <td><span class="text-white">{{ seccion.capacidadMaxima }} alumnos</span></td>
+                <td><span class="text-muted">{{ seccion.anioEscolar }}</span></td>
+                <td>
+                  <span *ngIf="seccion.activa" class="badge bg-success-custom">Activa</span>
+                  <span *ngIf="!seccion.activa" class="badge bg-danger-custom">Inactiva</span>
+                </td>
+                <td class="text-end pe-4">
                   <div class="btn-group">
                     <button class="btn btn-sm btn-action" (click)="openModal(seccion)" title="Editar">
                       <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-sm btn-action text-danger" (click)="deleteSeccion(seccion.id!)" title="Desactivar">
+                    <button class="btn btn-sm btn-action text-danger" (click)="deleteSeccion(seccion.id!)" title="Eliminar">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
                 </td>
               </tr>
-            } @empty {
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turno Tarde -->
+    <div class="glass-panel mb-4">
+      <div class="card-header bg-transparent border-bottom border-secondary p-4">
+        <div class="d-flex align-items-center gap-3">
+          <span class="turno-badge turno-tarde-lg"><i class="bi bi-moon-fill me-2"></i>Turno Tarde</span>
+          <span class="text-muted small">(13:30 - 19:15)</span>
+          <span class="badge rounded-pill bg-dark text-white ms-auto">{{ getSeccionesTarde().length }} secciones</span>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table custom-table mb-0">
+            <thead>
               <tr>
-                <td colspan="8" class="text-center py-5 text-muted">
-                  <div class="empty-state">
-                    <i class="bi bi-inbox fs-1 mb-3 d-block"></i>
-                    @if (loadError) {
-                      <p class="mb-1 text-danger">Error cargando datos. Reintentando...</p>
-                      <small class="text-muted">{{ loadError }}</small>
-                    } @else {
-                      <p class="mb-0">No hay secciones registradas en el sistema.</p>
-                    }
+                <th class="ps-4">SECCIÓN</th>
+                <th>TUTOR(A)</th>
+                <th>CAPACIDAD</th>
+                <th>AÑO</th>
+                <th>ESTADO</th>
+                <th class="text-end pe-4">ACCIONES</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="getSeccionesTarde().length === 0">
+                <td colspan="6" class="text-center py-4 text-muted">
+                  <i class="bi bi-journal-x d-block mb-2 opacity-50" style="font-size: 1.5rem;"></i>
+                  No hay secciones en turno tarde para este grado.
+                </td>
+              </tr>
+              <tr *ngFor="let seccion of getSeccionesTarde()">
+                <td class="ps-4">
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="seccion-avatar seccion-avatar-tarde">{{ seccion.nombre }}</div>
+                    <div>
+                      <span class="fw-semibold text-white d-block">Sección {{ seccion.nombre }}</span>
+                      <small class="text-muted">{{ seccion.gradoNombre }} - {{ seccion.nivelNombre }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  @if (puedeAsignarTutor) {
+                    <select class="form-select form-select-sm tutor-select" [ngModel]="seccion.docenteTutorId ?? null"
+                            (ngModelChange)="cambiarTutor(seccion, $event)" [attr.aria-label]="'Tutor de la sección ' + seccion.nombre">
+                      <option [ngValue]="null">Sin tutor</option>
+                      @for (d of docentes; track d.id) { <option [ngValue]="d.id">{{ d.apellido }}, {{ d.nombre }}</option> }
+                    </select>
+                  } @else {
+                    <span [class.text-muted]="!seccion.docenteTutorNombre">{{ seccion.docenteTutorNombre || 'Sin tutor' }}</span>
+                  }
+                </td>
+                <td><span class="text-white">{{ seccion.capacidadMaxima }} alumnos</span></td>
+                <td><span class="text-muted">{{ seccion.anioEscolar }}</span></td>
+                <td>
+                  <span *ngIf="seccion.activa" class="badge bg-success-custom">Activa</span>
+                  <span *ngIf="!seccion.activa" class="badge bg-danger-custom">Inactiva</span>
+                </td>
+                <td class="text-end pe-4">
+                  <div class="btn-group">
+                    <button class="btn btn-sm btn-action" (click)="openModal(seccion)" title="Editar">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-sm btn-action text-danger" (click)="deleteSeccion(seccion.id!)" title="Eliminar">
+                      <i class="bi bi-trash"></i>
+                    </button>
                   </div>
                 </td>
               </tr>
-            }
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Modal para Crear/Editar Sección -->
-@if (showModal) {
-<div class="modal-backdrop-custom d-flex align-items-center justify-content-center">
+<!-- Modal para Crear/Editar Seccion -->
+<div *ngIf="showModal" class="modal-backdrop-custom d-flex align-items-center justify-content-center">
   <div class="modal-content-custom glass-card p-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
       <h4 class="mb-0 text-light">{{ editingSeccionId ? 'Editar' : 'Nueva' }} Sección</h4>
@@ -113,22 +224,16 @@
         <div class="col-md-6">
           <label class="form-label text-muted small text-uppercase">Nombre (Letra)</label>
           <input type="text" class="form-control custom-input" formControlName="nombre" placeholder="Ej. A, B, C">
-          @if (seccionForm.get('nombre')?.invalid && seccionForm.get('nombre')?.touched) {
-            <small class="text-danger mt-1 d-block">El nombre es requerido.</small>
-          }
+          <small *ngIf="seccionForm.get('nombre')?.invalid && seccionForm.get('nombre')?.touched" class="text-danger mt-1 d-block">El nombre es requerido.</small>
         </div>
         
         <div class="col-md-6">
           <label class="form-label text-muted small text-uppercase">Grado</label>
           <select class="form-select custom-select" formControlName="gradoId">
             <option value="" disabled>Seleccione grado</option>
-            @for (grado of grados; track grado.id) {
-              <option [value]="grado.id">{{ grado.nombre }} - {{ grado.nivelNombre }}</option>
-            }
+            <option *ngFor="let grado of grados" [value]="grado.id">{{ grado.nombre }} - {{ grado.nivelNombre }}</option>
           </select>
-          @if (seccionForm.get('gradoId')?.invalid && seccionForm.get('gradoId')?.touched) {
-            <small class="text-danger mt-1 d-block">Debe seleccionar un grado.</small>
-          }
+          <small *ngIf="seccionForm.get('gradoId')?.invalid && seccionForm.get('gradoId')?.touched" class="text-danger mt-1 d-block">Debe seleccionar un grado.</small>
         </div>
 
         <div class="col-md-6">
@@ -140,12 +245,12 @@
         </div>
 
         <div class="col-md-6">
-          <label class="form-label text-muted small text-uppercase">Año Escolar</label>
+          <label class="form-label text-muted small text-uppercase">Ano Escolar</label>
           <input type="number" class="form-control custom-input" formControlName="anioEscolar">
         </div>
 
         <div class="col-md-6">
-          <label class="form-label text-muted small text-uppercase">Capacidad Máxima</label>
+          <label class="form-label text-muted small text-uppercase">Capacidad Maxima</label>
           <input type="number" class="form-control custom-input" formControlName="capacidadMaxima">
         </div>
 
@@ -164,4 +269,3 @@
     </form>
   </div>
 </div>
-}

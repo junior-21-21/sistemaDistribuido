@@ -32,14 +32,25 @@ public class ApoderadoService {
         return apoderadoRepository.findById(id).map(apoderadoMapper::toDto);
     }
 
+    public Optional<ApoderadoDTO> buscarPorDni(String dni) {
+        return apoderadoRepository.findByDni(dni).map(apoderadoMapper::toDto);
+    }
+
     public ApoderadoDTO guardar(ApoderadoDTO apoderadoDTO) {
-        // Validación extra de DNI duplicado podría ir aquí
+        if (apoderadoRepository.findByDni(apoderadoDTO.getDni()).isPresent()) {
+            throw new IllegalArgumentException("Ya existe un apoderado con ese DNI");
+        }
         Apoderado apoderado = apoderadoMapper.toEntity(apoderadoDTO);
         apoderado = apoderadoRepository.save(apoderado);
         return apoderadoMapper.toDto(apoderado);
     }
 
     public Optional<ApoderadoDTO> actualizar(Long id, ApoderadoDTO detalles) {
+        apoderadoRepository.findByDni(detalles.getDni())
+                .filter(apoderado -> !apoderado.getId().equals(id))
+                .ifPresent(apoderado -> {
+                    throw new IllegalArgumentException("Ya existe un apoderado con ese DNI");
+                });
         return apoderadoRepository.findById(id).map(apoderado -> {
             apoderadoMapper.updateEntityFromDto(detalles, apoderado);
             return apoderadoMapper.toDto(apoderadoRepository.save(apoderado));

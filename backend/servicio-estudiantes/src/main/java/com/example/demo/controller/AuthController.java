@@ -3,11 +3,17 @@ package com.example.demo.controller;
 import com.example.demo.model.Usuario;
 import com.example.demo.repository.UsuarioRepository;
 import com.example.demo.security.JwtUtil;
+import com.example.demo.dto.CambiarClaveRequest;
+import com.example.demo.service.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,6 +22,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.time.LocalDateTime;
+import java.security.Principal;
 
 /**
  * AuthController — Maneja login/logout con JWT.
@@ -37,9 +45,12 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    @Autowired
+    private UsuarioService usuarioService;
+
     /**
      * POST /api/auth/login
-     * Body: { "username": "director", "password": "admin123" }
+     * Body: { "username": "director", "password": "contraseña configurada" }
      * Retorna: { "token": "eyJ...", "username", "nombre", "rol", "email" }
      */
     @PostMapping("/login")
@@ -65,13 +76,17 @@ public class AuthController {
             }
 
             Usuario usuario = usuarioOpt.get();
+            usuario.setUltimoAcceso(LocalDateTime.now());
+            usuarioRepository.save(usuario);
             String nombreCompleto = usuario.getNombre() + " " + usuario.getApellido();
 
             // Generar JWT
             String token = jwtUtil.generateToken(
                 usuario.getUsername(),
                 usuario.getRol(),
-                nombreCompleto
+                usuario.getRoles(),
+                nombreCompleto,
+                usuario.getEmail()
             );
 
             Map<String, Object> response = new HashMap<>();
@@ -79,8 +94,10 @@ public class AuthController {
             response.put("username", usuario.getUsername());
             response.put("nombre", nombreCompleto);
             response.put("rol", usuario.getRol());
+            response.put("roles", usuario.getRoles());
             response.put("email", usuario.getEmail());
             response.put("estado", usuario.getEstado());
+            response.put("debeCambiarClave", Boolean.TRUE.equals(usuario.getDebeCambiarClave()));
             response.put("message", "Login exitoso");
 
             return ResponseEntity.ok(response);
@@ -91,9 +108,21 @@ public class AuthController {
                     "error", "Credenciales incorrectas",
                     "message", "Usuario o contraseña inválidos"
                 ));
+        } catch (DisabledException | LockedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of(
+                    "error", "Cuenta inactiva",
+                    "message", "La cuenta está desactivada o bloqueada. Contacta al administrador."
+                ));
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of(
+                    "error", "Credenciales incorrectas",
+                    "message", "Usuario o contraseña inválidos"
+                ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Error interno: " + e.getMessage()));
+                .body(Map.of("error", "No se pudo completar el inicio de sesión"));
         }
     }
 
@@ -105,6 +134,15 @@ public class AuthController {
     public ResponseEntity<?> logout() {
         SecurityContextHolder.clearContext();
         return ResponseEntity.ok(Map.of("message", "Sesión cerrada correctamente"));
+    }
+
+    @PostMapping("/cambiar-clave")
+    public ResponseEntity<?> cambiarClave(
+            @Valid @RequestBody CambiarClaveRequest request,
+            Principal principal) {
+        usuarioService.cambiarClavePropia(
+                principal.getName(), request.claveActual(), request.nuevaClave());
+        return ResponseEntity.ok(Map.of("message", "Clave actualizada correctamente"));
     }
 
     /**
@@ -125,6 +163,7 @@ public class AuthController {
                 response.put("username", u.getUsername());
                 response.put("nombre", u.getNombre() + " " + u.getApellido());
                 response.put("rol", u.getRol());
+                response.put("roles", u.getRoles());
                 response.put("email", u.getEmail());
                 return ResponseEntity.ok(response);
             })

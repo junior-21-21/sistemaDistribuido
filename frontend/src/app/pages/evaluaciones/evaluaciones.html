@@ -1,91 +1,398 @@
 <div class="evaluaciones-container">
+  <app-live-banner [modulos]="['notas', 'bimestres']" (refrescar)="cargarEvaluaciones()"></app-live-banner>
   <div class="page-header mb-4">
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
       <div>
-        <h1 class="page-title mb-1">Registro de Notas por Competencias</h1>
-        <p class="text-muted small mb-0">Escala de Evaluación MINEDU: <strong class="text-success">AD</strong> — Logro Destacado &nbsp;|&nbsp; <strong class="text-primary">A</strong> — Logro Esperado &nbsp;|&nbsp; <strong class="text-warning">B</strong> — En Proceso &nbsp;|&nbsp; <strong class="text-danger">C</strong> — En Inicio</p>
+        <h1 class="page-title mb-1">Registro de notas por competencias</h1>
+        <p class="text-muted small mb-0">
+          Escala MINEDU: <strong class="text-success">AD</strong> Logro destacado ·
+          <strong class="text-primary">A</strong> Logro esperado ·
+          <strong class="text-warning">B</strong> En proceso ·
+          <strong class="text-danger">C</strong> En inicio
+        </p>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex align-items-center gap-2">
         @if (savedMessage) {
           <span class="alert alert-success py-2 px-3 mb-0 small fw-medium">{{ savedMessage }}</span>
         }
-        <button class="btn btn-primary px-4" (click)="guardarNotas()" [disabled]="saving">
+        @if (!soloLectura) {
+        <button class="btn btn-primary px-4" (click)="guardarNotas()"
+                [disabled]="saving || loading || bimestreCerrado || !currentDocenteId || !competencias.length">
           @if (saving) { <span class="spinner-border spinner-border-sm me-2"></span> }
-          {{ saving ? 'Guardando...' : 'Guardar Notas' }}
+          {{ saving ? 'Guardando…' : 'Guardar notas' }}
         </button>
+        }
       </div>
     </div>
   </div>
 
-  <!-- Selector de contexto -->
+  @if (errorMessage) {
+    <div class="alert alert-danger" role="alert">{{ errorMessage }}</div>
+  }
+
+  <!-- ============ VISTA 1: CAJONES DE GRADOS ============ -->
+  <div *ngIf="vistaActual === 'grados' && !loading">
+    <app-continuar-seccion (continuar)="continuarUltima($event)"></app-continuar-seccion>
+    <div class="row g-4 mb-4">
+      <div *ngFor="let grado of gradosDisponibles" class="col-md-6 col-lg-4">
+        <div class="glass-panel p-4 h-100 grado-card-nav" (click)="navegarAGrado(grado)" style="cursor: pointer; border-left: 4px solid var(--primary-color);">
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <h3 class="h4 fw-bold text-white mb-0">{{ grado.nombre }}</h3>
+            <span class="badge bg-primary-subtle text-primary border border-primary opacity-75">Secundaria</span>
+          </div>
+          <p class="text-muted small mb-3">Registrar y supervisar evaluaciones de {{ grado.nombre }}.</p>
+          <div class="d-flex justify-content-between align-items-center mt-auto">
+            <span class="text-white-50 small"><i class="bi bi-grid-1x2 me-1"></i> Ver secciones</span>
+            <i class="bi bi-arrow-right-circle-fill fs-4 text-primary"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 2: SECCIONES DE UN GRADO ============ -->
+  <div *ngIf="vistaActual === 'secciones'">
+    <button class="btn btn-outline-light mb-4 btn-sm" (click)="volverAGrados()">
+      <i class="bi bi-arrow-left me-2"></i> Volver a los grados
+    </button>
+    <h4 class="text-white mb-4"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>Secciones de {{ gradoNavegacion?.nombre }}</h4>
+
+    <!-- Turno Manana -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesMananaNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-manana-est"><i class="bi bi-sun-fill me-2"></i>Turno Mañana</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesMananaNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-manana">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turno Tarde -->
+    <div class="glass-panel mb-4" *ngIf="getSeccionesTardeNav().length > 0">
+      <div class="p-4 border-bottom border-secondary">
+        <span class="turno-badge-est turno-tarde-est"><i class="bi bi-moon-fill me-2"></i>Turno Tarde</span>
+      </div>
+      <div class="p-3">
+        <div class="row g-3">
+          <div *ngFor="let sec of getSeccionesTardeNav()" class="col-md-4 col-lg-3">
+            <div class="seccion-card-nav" (click)="navegarASeccion(sec)" style="cursor: pointer;">
+              <div class="seccion-avatar-nav seccion-avatar-tarde">{{ sec.nombre }}</div>
+              <div>
+                <span class="fw-semibold text-white d-block">Sección {{ sec.nombre }}</span>
+              </div>
+              <i class="bi bi-chevron-right text-muted ms-auto"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ VISTA 3: GESTOR DE EVALUACIONES ============ -->
+  <div *ngIf="vistaActual === 'gestor'">
+    <div class="mb-4 d-flex justify-content-between align-items-center">
+      <button class="btn btn-outline-light btn-sm" (click)="volverASecciones()">
+        <i class="bi bi-arrow-left me-2"></i> Volver a secciones de {{ gradoNavegacion?.nombre }}
+      </button>
+      <div class="text-end">
+        <p class="mb-0 text-white fw-bold">Sección {{ seccionActual }}</p>
+      </div>
+    </div>
+
   <div class="card border-0 mb-4 p-4">
     <div class="row g-3">
-      <div class="col-md-4">
-        <label class="form-label">Sección</label>
-        <select class="form-select" [(ngModel)]="currentGrado">
-          <option>3ro "A"</option>
-          <option>3ro "B"</option>
-          <option>4to "A"</option>
-        </select>
-      </div>
-      <div class="col-md-4">
-        <label class="form-label">Área Curricular</label>
-        <select class="form-select" [(ngModel)]="currentCurso">
-          @for (comp of competencias; track comp) {
-            <option [value]="comp">{{ comp }}</option>
+      <div class="col-lg-3 col-md-6">
+        <label class="form-label" for="curso-evaluacion">Área curricular</label>
+        <select id="curso-evaluacion" class="form-select" [(ngModel)]="currentCursoId"
+                (ngModelChange)="cambiarCurso()">
+          @for (curso of cursosDisponibles; track curso.id) {
+            <option [ngValue]="curso.id">{{ curso.nombre }}</option>
           }
         </select>
       </div>
-      <div class="col-md-4">
-        <label class="form-label">Período</label>
-        <select class="form-select" [(ngModel)]="currentPeriodo">
-          <option>I Bimestre 2026</option>
-          <option>II Bimestre 2026</option>
-          <option>III Bimestre 2026</option>
-          <option>IV Bimestre 2026</option>
+      <div class="col-lg-3 col-md-6">
+        <label class="form-label" for="bimestre-evaluacion">Período</label>
+        <select id="bimestre-evaluacion" class="form-select" [(ngModel)]="currentBimestre"
+                (ngModelChange)="cambiarBimestre()">
+          @for (bimestre of bimestres; track bimestre) {
+            <option [value]="bimestre">{{ bimestre }} {{ anioEscolar }}</option>
+          }
         </select>
       </div>
+      <div class="col-lg-3 col-md-6">
+        <label class="form-label" for="docente-evaluacion">Docente responsable</label>
+        <input id="docente-evaluacion" class="form-control" [value]="docenteActual" readonly>
+      </div>
     </div>
+
+    @if (!soloLectura) {
+    <div class="competencia-editor mt-4 pt-3 border-top">
+      <label class="form-label" for="nueva-competencia">Agregar columna (competencia, tarea o examen)</label>
+      <div class="input-group">
+        <input id="nueva-competencia" class="form-control" maxlength="100" [disabled]="bimestreCerrado"
+               [(ngModel)]="nuevaCompetencia" (keyup.enter)="agregarCompetencia()"
+               placeholder="Ej.: Tarea 1, Práctica calificada, Resuelve problemas de cantidad">
+        <button class="btn btn-outline-primary" type="button" (click)="agregarCompetencia()">
+          Agregar columna
+        </button>
+      </div>
+      <small class="text-muted">Luego indica en la planilla cuánto vale cada columna (%). El promedio del bimestre se calcula solo.</small>
+    </div>
+    } @else {
+      <div class="alert alert-info mt-4 mb-0">Vista de supervisión: la edición corresponde al docente asignado.</div>
+    }
   </div>
 
-  <!-- Tabla de notas -->
-  <div class="card border-0">
-    <div class="card-header bg-transparent px-4 pt-4 pb-3 border-0">
-      <h5 class="mb-0 fw-bold">{{ currentGrado }} — {{ currentCurso }} — {{ currentPeriodo }}</h5>
+  <div class="card border-0 mb-4 p-4 estado-bimestre">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+      <div>
+        <h5 class="mb-1 fw-bold"><i class="bi bi-calendar-check me-2"></i>Estado del período</h5>
+        <span class="badge" [class.text-bg-danger]="bimestreCerrado" [class.text-bg-success]="!bimestreCerrado">
+          {{ bimestreCerrado ? 'CERRADO' : 'ABIERTO' }}
+        </span>
+        @if (bimestreCerrado && !soloLectura) {
+          <p class="text-danger small mt-2 mb-0">Las calificaciones están bloqueadas hasta una reapertura autorizada.</p>
+        }
+      </div>
+      @if (esDirector || esCoordinadorAcademico) {
+        <div class="gestion-bimestre">
+          <label for="motivo-estado" class="form-label small">Motivo obligatorio</label>
+          <div class="input-group">
+            <input id="motivo-estado" class="form-control" maxlength="500" [(ngModel)]="motivoCambioEstado"
+                   placeholder="Motivo verificable (mínimo 10 caracteres)">
+            @if (esCoordinadorAcademico && !bimestreCerrado) {
+              <button class="btn btn-outline-danger" [disabled]="cambiandoEstado" (click)="cambiarEstadoBimestre('CERRAR')">Cerrar bimestre</button>
+            }
+            @if (esDirector && bimestreCerrado) {
+              <button class="btn btn-outline-primary" [disabled]="cambiandoEstado" (click)="cambiarEstadoBimestre('REABRIR')">Reabrir bimestre</button>
+            }
+          </div>
+        </div>
+      }
     </div>
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table mb-0">
-          <thead>
-            <tr>
-              <th style="width: 50px;">#</th>
-              <th>Apellidos y Nombres</th>
-              @for (comp of competencias; track comp) {
-                <th class="text-center">{{ comp }}</th>
-              }
-            </tr>
-          </thead>
+    @if ((esDirector || esCoordinadorAcademico) && auditoriaBimestre.length) {
+      <div class="table-responsive mt-4">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Evento</th><th>Motivo</th><th>Actor</th><th>Fecha</th></tr></thead>
           <tbody>
-            @for (est of estudiantes; track est.id; let i = $index) {
+            @for (evento of auditoriaBimestre; track evento.ocurridoEn) {
               <tr>
-                <td class="text-muted">{{ i + 1 }}</td>
-                <td>
-                  <div class="fw-medium">{{ est.apellido }}, {{ est.nombre }}</div>
-                </td>
-                @for (comp of competencias; track comp) {
-                  <td class="text-center">
-                    <select class="escala-select"
-                      [(ngModel)]="est.notas[comp]"
-                      [class]="'escala-' + (est.notas[comp] || '').toLowerCase()">
-                      @for (e of escalas; track e) { <option [value]="e">{{ e }}</option> }
-                    </select>
-                  </td>
-                }
+                <td>{{ evento.accion }}</td><td>{{ evento.motivo }}</td><td>{{ evento.actor }}</td>
+                <td>{{ evento.ocurridoEn | date:'dd/MM/yyyy HH:mm' }}</td>
               </tr>
             }
           </tbody>
         </table>
       </div>
+    }
+  </div>
+
+  <div class="card border-0">
+    <div class="card-header bg-transparent px-4 pt-4 pb-3 border-0">
+      <h5 class="mb-0 fw-bold">{{ seccionActual }} — {{ cursoActual }} — {{ currentBimestre }} {{ anioEscolar }}</h5>
     </div>
+    @if (!soloLectura && !bimestreCerrado && competencias.length && estudiantes.length) {
+      <div class="voz" [class.escuchando]="escuchando">
+        <button type="button" class="microfono" (click)="alternarVoz()" [disabled]="!vozDisponible"
+                [attr.aria-label]="escuchando ? 'Detener dictado' : 'Dictar notas por voz'">
+          <i class="bi" [class.bi-mic-fill]="!escuchando" [class.bi-stop-fill]="escuchando"></i>
+        </button>
+        <div class="voz-texto">
+          @if (!vozDisponible) {
+            <strong>Dictado no disponible en este navegador</strong>
+            <small>Usa Google Chrome o Microsoft Edge para dictar notas.</small>
+          } @else if (escuchando) {
+            <strong>Escuchando… di el nombre y la nota</strong>
+            <small>{{ transcripcion || 'Ej.: Juan Quispe, A · María Huamán, logro destacado · número 5, B · Rosa Ccahuana, 15' }}</small>
+          } @else {
+            <strong>Dictar notas por voz</strong>
+            <small>Pulsa el micrófono y dicta nombre y nota. Se llenan en la competencia elegida; revisa y luego Guardar.</small>
+          }
+        </div>
+        <label class="voz-competencia">
+          <span>Competencia</span>
+          <select class="form-select form-select-sm" [(ngModel)]="competenciaVoz">
+            @for (competencia of competencias; track competencia) { <option [value]="competencia">{{ competencia }}</option> }
+          </select>
+        </label>
+      </div>
+      @if (registrosVoz.length) {
+        <div class="voz-registro">
+          @for (r of registrosVoz; track $index) {
+            <span class="voz-chip" [class.mal]="!r.ok">{{ r.texto }}</span>
+          }
+        </div>
+      }
+    }
+    <div class="card-body p-0">
+      <!-- Barra de la planilla -->
+      <div class="hoja-barra">
+        <div class="hoja-indicadores">
+          <span class="chip-suma" [class.ok]="pesosCompletos" [class.alerta]="sumaPesos > 100"
+                title="Suma de los porcentajes de todas las columnas">
+            <i class="bi" [class.bi-check-circle-fill]="pesosCompletos" [class.bi-exclamation-triangle-fill]="!pesosCompletos"></i>
+            Pesos: {{ sumaPesos }} %
+          </span>
+          @if (resumenSeccion.literal) {
+            <span class="chip-resumen">Promedio de la sección:
+              <b class="nota-badge" [class]="'nota-badge nota-' + resumenSeccion.literal!.toLowerCase()">{{ resumenSeccion.literal }}</b>
+            </span>
+            <span class="chip-resumen">Logro esperado o destacado: <b>{{ resumenSeccion.aprobados }}</b> de {{ estudiantes.length }}</span>
+          }
+        </div>
+        <div class="hoja-acciones">
+          @if (!soloLectura && !bimestreCerrado && competencias.length) {
+            <button type="button" class="btn btn-sm btn-outline-secondary" (click)="repartirPesos()"
+                    title="Asigna el mismo porcentaje a todas las columnas">
+              <i class="bi bi-distribute-horizontal me-1"></i>Repartir 100 % en partes iguales
+            </button>
+          }
+          <button type="button" class="btn btn-sm btn-excel" (click)="exportarExcel()"
+                  [disabled]="!competencias.length || !estudiantes.length">
+            <i class="bi bi-file-earmark-excel-fill me-1"></i>Descargar Excel
+          </button>
+        </div>
+      </div>
+      @if (competencias.length && !pesosCompletos && sumaPesos > 0) {
+        <div class="hoja-aviso" [class.grave]="sumaPesos > 100">
+          @if (sumaPesos > 100) {
+            Los porcentajes suman {{ sumaPesos }} %: baja alguno para que no pasen de 100 %.
+          } @else {
+            Los porcentajes suman {{ sumaPesos }} %. Falta asignar {{ 100 - sumaPesos }} %; mientras tanto el promedio se calcula en proporción.
+          }
+        </div>
+      }
+
+      <div class="hoja-contenedor">
+        <table class="hoja">
+          <thead>
+            <tr class="hoja-letras">
+              <th class="col-num"></th>
+              <th class="col-nombre">A</th>
+              @for (competencia of competencias; track competencia; let c = $index) {
+                <th>{{ letraColumna(c + 1) }}</th>
+              }
+              <th class="col-promedio">{{ letraColumna(competencias.length + 1) }}</th>
+            </tr>
+            <tr class="hoja-titulos">
+              <th class="col-num">N.°</th>
+              <th class="col-nombre">Apellidos y nombres</th>
+              @for (competencia of competencias; track competencia) {
+                <th class="col-nota" [title]="competencia">
+                  <div class="titulo-columna">
+                    <span>{{ competencia }}</span>
+                    @if (!soloLectura && !bimestreCerrado) {
+                      <button type="button" class="quitar-columna" (click)="eliminarColumna(competencia)"
+                              [attr.aria-label]="'Eliminar columna ' + competencia" title="Eliminar columna">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    }
+                  </div>
+                </th>
+              }
+              <th class="col-promedio">Promedio del bimestre</th>
+            </tr>
+            <tr class="hoja-pesos">
+              <th class="col-num"><i class="bi bi-percent"></i></th>
+              <th class="col-nombre">Vale (%)</th>
+              @for (competencia of competencias; track competencia) {
+                <th class="col-nota">
+                  <div class="peso-celda">
+                    <input type="number" min="0" max="100" step="1" inputmode="decimal"
+                           [(ngModel)]="pesos[competencia]" [disabled]="soloLectura || bimestreCerrado"
+                           placeholder="—" [attr.aria-label]="'Porcentaje de ' + competencia">
+                    <span>%</span>
+                  </div>
+                </th>
+              }
+              <th class="col-promedio">
+                <span class="suma-total" [class.ok]="pesosCompletos" [class.alerta]="sumaPesos > 100">{{ sumaPesos }} %</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (loading) {
+              <tr><td [attr.colspan]="competencias.length + 3" class="hoja-vacia">Cargando evaluaciones…</td></tr>
+            } @else if (!estudiantes.length) {
+              <tr><td [attr.colspan]="competencias.length + 3" class="hoja-vacia">No hay estudiantes en la sección seleccionada.</td></tr>
+            } @else {
+              @for (estudiante of estudiantes; track estudiante.id; let i = $index) {
+                <tr>
+                  <td class="col-num">{{ i + 1 }}</td>
+                  <td class="col-nombre">{{ estudiante.apellido }}, {{ estudiante.nombre }}</td>
+                  @for (competencia of competencias; track competencia) {
+                    <td class="col-nota celda" [class.dictado]="resaltado === estudiante.id + '|' + competencia"
+                        [class]="'col-nota celda nota-' + (estudiante.notas[competencia] || 'vacia').toLowerCase()">
+                      <select [(ngModel)]="estudiante.notas[competencia]" [disabled]="soloLectura || bimestreCerrado"
+                              [attr.aria-label]="'Nota de ' + estudiante.nombre + ' en ' + competencia">
+                        <option value="">·</option>
+                        @for (escala of escalas; track escala) {
+                          <option [value]="escala">{{ escala }}</option>
+                        }
+                      </select>
+                    </td>
+                  }
+                  @let r = promedio(estudiante);
+                  <td class="col-promedio">
+                    @if (r.literal) {
+                      <span class="nota-badge" [class]="'nota-badge nota-' + r.literal.toLowerCase()">{{ r.literal }}</span>
+                      <small class="valor" [title]="'Valor ponderado en escala de 1 a 4' + (r.parcial ? ' (faltan notas)' : '')">
+                        {{ r.valor | number:'1.1-2' }}@if (r.parcial) {<sup>*</sup>}
+                      </small>
+                    } @else {
+                      <span class="text-muted">—</span>
+                    }
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+          @if (!loading && estudiantes.length && competencias.length) {
+            <tfoot>
+              <tr>
+                <td class="col-num"><i class="bi bi-bar-chart-fill"></i></td>
+                <td class="col-nombre">Resumen de la columna</td>
+                @for (competencia of competencias; track competencia) {
+                  @let conteo = conteoColumna(competencia);
+                  <td class="col-nota">
+                    <div class="conteo">
+                      <span class="nota-ad">AD {{ conteo.AD }}</span><span class="nota-a">A {{ conteo.A }}</span>
+                      <span class="nota-b">B {{ conteo.B }}</span><span class="nota-c">C {{ conteo.C }}</span>
+                    </div>
+                  </td>
+                }
+                <td class="col-promedio">
+                  @if (resumenSeccion.literal) {
+                    <span class="nota-badge" [class]="'nota-badge nota-' + resumenSeccion.literal!.toLowerCase()">{{ resumenSeccion.literal }}</span>
+                    <small class="valor">{{ resumenSeccion.valor | number:'1.1-2' }}</small>
+                  }
+                </td>
+              </tr>
+            </tfoot>
+          }
+        </table>
+      </div>
+      @if (!loading && estudiantes.length && competencias.length) {
+        <p class="hoja-leyenda">
+          Promedio: AD = 4, A = 3, B = 2, C = 1, ponderados por el porcentaje de cada columna.
+          Resultado: <b>AD</b> desde 3,5 · <b>A</b> desde 2,5 · <b>B</b> desde 1,5 · <b>C</b> menos de 1,5.
+          <sup>*</sup> Faltan notas: se promedia solo lo registrado.
+        </p>
+      }
+      @if (!loading && estudiantes.length && !competencias.length) {
+        <div class="text-center py-5 text-muted">Agrega la primera columna (competencia, tarea o examen) para comenzar a registrar notas.</div>
+      }
+    </div>
+  </div>
   </div>
 </div>

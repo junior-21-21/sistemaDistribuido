@@ -1,19 +1,53 @@
-<div class="glass-dock-wrapper">
-  <nav class="glass-dock" [style.--total]="menuItems.length" [style.--active-index]="activeIndex">
-    <!-- Active Indicator Pill -->
-    <div class="indicator"></div>
-    
-    <ul class="nav-list">
-      @for (item of menuItems; track item.path; let i = $index) {
-        <li class="nav-item" [class.active]="activeIndex === i">
-          <a [routerLink]="item.path" class="nav-link">
-            <span class="nav-icon">
-              <i class="bi" [class]="item.icon"></i>
-            </span>
-            <span class="nav-text">{{ item.label }}</span>
+@if (layout.menuMovilAbierto()) {
+  <div class="scrim" (click)="cerrarMovil()" aria-hidden="true"></div>
+}
+
+<aside class="sidebar cuaderno" [class.compacto]="layout.menuCompacto()" [class.abierto]="layout.menuMovilAbierto()"
+       aria-label="Menú principal">
+  <a class="marca" routerLink="/dashboard" title="Ir al inicio">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="22" height="22">
+        <path d="M16 4 3 10.5 16 17l10-5v7h2.5v-8.25L16 4Z" fill="currentColor" />
+        <path d="M8 15.5V21c0 2.2 3.6 4.5 8 4.5s8-2.3 8-4.5v-5.5l-8 4-8-4Z" fill="currentColor" opacity=".55" />
+      </svg>
+    </span>
+    <span class="marca-texto">
+      <strong>PAD</strong>
+      <small>I.E.P. Huamanga</small>
+    </span>
+  </a>
+
+  <nav class="menu">
+    @for (grupo of grupos(); track grupo.nombre) {
+      <div class="grupo" [attr.data-grupo]="claseGrupo(grupo.nombre)">
+        @if (grupo.nombre !== 'Inicio') {
+          <div class="grupo-titulo"><span class="separador" aria-hidden="true"></span>{{ grupo.nombre }}</div>
+        }
+        @for (item of grupo.items; track item.path) {
+          <a class="item" [routerLink]="item.path" routerLinkActive="activo"
+             [routerLinkActiveOptions]="{ exact: item.path === '/dashboard' }"
+             [attr.title]="layout.menuCompacto() ? item.label : item.descripcion">
+            <i class="bi" [class]="item.icon" aria-hidden="true"></i>
+            <span class="item-texto">{{ item.label }}</span>
+            @if (pendientes()[item.path]; as n) {
+              <span class="pendiente" [attr.aria-label]="n + ' cambios nuevos'">{{ n > 9 ? '9+' : n }}</span>
+            }
           </a>
-        </li>
-      }
-    </ul>
+        }
+      </div>
+    }
   </nav>
-</div>
+
+  @if (usuario(); as user) {
+    <div class="perfil">
+      <span class="avatar" aria-hidden="true">{{ iniciales() }}</span>
+      <span class="perfil-texto">
+        <strong>{{ user.name }}</strong>
+        <small>{{ rolPrincipal() }}</small>
+      </span>
+      <button type="button" class="salir" (click)="authService.logout()" title="Cerrar sesión" aria-label="Cerrar sesión">
+        <i class="bi bi-box-arrow-right"></i>
+      </button>
+    </div>
+  }
+</aside>

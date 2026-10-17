@@ -15,7 +15,8 @@ import java.time.LocalDateTime;
  * Una falta JUSTIFICADA no cuenta para alertas de deserción.
  */
 @Entity
-@Table(name = "asistencias", indexes = {
+@Table(name = "asistencias", uniqueConstraints = @UniqueConstraint(
+    name = "uk_asistencia_estudiante_sesion", columnNames = {"estudianteId", "horarioId", "fecha"}), indexes = {
     @Index(name = "idx_asistencia_estudiante", columnList = "estudianteId"),
     @Index(name = "idx_asistencia_fecha", columnList = "fecha"),
     @Index(name = "idx_asistencia_horario", columnList = "horarioId"),

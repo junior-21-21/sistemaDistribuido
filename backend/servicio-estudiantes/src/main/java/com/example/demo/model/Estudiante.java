@@ -32,9 +32,8 @@ public class Estudiante {
     @Column(unique = true, nullable = false, length = 8)
     private String dni;
 
-    @NotBlank(message = "El email es obligatorio")
     @Email(message = "Email no valido")
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
     private String email;
 
     @Column

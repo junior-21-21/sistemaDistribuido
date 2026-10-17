@@ -73,7 +73,9 @@ public class Nota {
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();
-        this.periodoAnio = String.valueOf(java.time.LocalDate.now().getYear());
+        if (this.periodoAnio == null || this.periodoAnio.isBlank()) {
+            this.periodoAnio = String.valueOf(java.time.LocalDate.now().getYear());
+        }
     }
 
     @PreUpdate

@@ -1,0 +1,234 @@
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="h3 mb-1 fw-semibold page-title">Proceso de Matrícula 2026</h2>
+      <p class="text-muted small mb-0">Inscribe nuevos estudiantes y regístralos en el sistema</p>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-10 col-xl-8">
+      
+      <!-- Stepper Header -->
+      <div class="glass-panel p-4 mb-4">
+        <div class="d-flex justify-content-between position-relative stepper-container">
+          <!-- Line background -->
+          <div class="stepper-line"></div>
+          
+          <!-- Step 1 -->
+          <div class="stepper-step" [class.active]="currentStep === 1" [class.completed]="currentStep > 1" (click)="currentStep > 1 ? currentStep = 1 : null">
+            <div class="stepper-circle">
+              <i class="bi bi-person" *ngIf="currentStep <= 1"></i>
+              <i class="bi bi-check-lg" *ngIf="currentStep > 1"></i>
+            </div>
+            <div class="stepper-title mt-2">Estudiante</div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="stepper-step" [class.active]="currentStep === 2" [class.completed]="currentStep > 2" (click)="currentStep > 2 ? currentStep = 2 : null">
+            <div class="stepper-circle">
+              <i class="bi bi-people" *ngIf="currentStep <= 2"></i>
+              <i class="bi bi-check-lg" *ngIf="currentStep > 2"></i>
+            </div>
+            <div class="stepper-title mt-2">Apoderado</div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="stepper-step" [class.active]="currentStep === 3" [class.completed]="currentStep > 3" (click)="currentStep > 3 ? currentStep = 3 : null">
+            <div class="stepper-circle">
+              <i class="bi bi-mortarboard" *ngIf="currentStep <= 3"></i>
+              <i class="bi bi-check-lg" *ngIf="currentStep > 3"></i>
+            </div>
+            <div class="stepper-title mt-2">Académico</div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="stepper-step" [class.active]="currentStep === 4" [class.completed]="currentStep > 4">
+            <div class="stepper-circle">
+              <i class="bi bi-wallet2" *ngIf="currentStep <= 4"></i>
+              <i class="bi bi-check-lg" *ngIf="currentStep > 4"></i>
+            </div>
+            <div class="stepper-title mt-2">Matrícula</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formularios por paso -->
+      <div class="glass-panel p-4 p-md-5 position-relative overflow-hidden">
+        
+        <!-- Decoration blur -->
+        <div class="position-absolute top-0 end-0 bg-primary opacity-10 blur-circle" style="width: 200px; height: 200px; filter: blur(60px); border-radius: 50%;"></div>
+
+        <!-- PASO 1: ESTUDIANTE -->
+        <div class="step-content fade-in" *ngIf="currentStep === 1">
+          <h4 class="text-white mb-4"><i class="bi bi-person me-2 text-primary"></i>Datos del Estudiante</h4>
+          
+          <div class="row g-4">
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Nombres Completos</label>
+              <input type="text" class="form-control" [(ngModel)]="estudiante.nombres" placeholder="Ej: Juan Carlos">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Apellidos Completos</label>
+              <input type="text" class="form-control" [(ngModel)]="estudiante.apellidos" placeholder="Ej: Pérez Gómez">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Documento de Identidad (DNI)</label>
+              <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-card-text"></i></span>
+                <input type="text" class="form-control" [(ngModel)]="estudiante.dni" placeholder="8 dígitos" maxlength="8">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Fecha de Nacimiento</label>
+              <input type="date" class="form-control" [(ngModel)]="estudiante.fechaNacimiento">
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 2: APODERADO -->
+        <div class="step-content fade-in" *ngIf="currentStep === 2">
+          <h4 class="text-white mb-4"><i class="bi bi-people me-2 text-primary"></i>Datos del Apoderado Legal</h4>
+          
+          <div class="alert alert-info bg-info bg-opacity-10 border-info border-opacity-25 text-info d-flex mb-4">
+            <i class="bi bi-info-circle-fill me-3 fs-5"></i>
+            <div>Por ley, todo estudiante menor de edad debe estar vinculado a un apoderado registrado. Ingresa el DNI para autocompletar si ya existe.</div>
+          </div>
+
+          <div class="row g-4">
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">DNI del Apoderado</label>
+              <div class="input-group">
+                <input type="text" class="form-control" [(ngModel)]="apoderado.dni" placeholder="8 dígitos" maxlength="8" (blur)="buscarApoderadoPorDni()">
+                <button class="btn btn-outline-primary" type="button" (click)="buscarApoderadoPorDni()"><i class="bi bi-search"></i></button>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Parentesco</label>
+              <select class="form-select custom-select" [(ngModel)]="apoderado.parentesco">
+                <option value="">Seleccione...</option>
+                <option value="PADRE">Padre</option>
+                <option value="MADRE">Madre</option>
+                <option value="ABUELO">Abuelo(a)</option>
+                <option value="TIO">Tío(a)</option>
+                <option value="TUTOR_LEGAL">Tutor Legal</option>
+              </select>
+            </div>
+            <div class="col-md-12">
+              <label class="form-label text-muted small fw-medium">Nombres Completos</label>
+              <input type="text" class="form-control" [(ngModel)]="apoderado.nombres" placeholder="Nombre completo del apoderado">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Teléfono / Celular</label>
+              <div class="input-group">
+                <span class="input-group-text bg-dark border-secondary text-muted"><i class="bi bi-telephone"></i></span>
+                <input type="text" class="form-control" [(ngModel)]="apoderado.telefono" placeholder="Ej: 999 888 777">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Correo Electrónico (Opcional)</label>
+              <input type="email" class="form-control" [(ngModel)]="apoderado.email" placeholder="correo@ejemplo.com">
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 3: ACADÉMICO -->
+        <div class="step-content fade-in" *ngIf="currentStep === 3">
+          <h4 class="text-white mb-4"><i class="bi bi-mortarboard me-2 text-primary"></i>Ubicación Académica</h4>
+          
+          <div class="row g-4">
+            <div class="col-md-6">
+              <label class="form-label text-muted small fw-medium">Grado a Matricular</label>
+              <select class="form-select custom-select form-select-lg mb-3" [(ngModel)]="academico.gradoId">
+                <option value="">Seleccione un grado...</option>
+                <option *ngFor="let g of grados" [value]="g.id">{{ g.nombre }}</option>
+              </select>
+            </div>
+            
+            <div class="col-md-6" *ngIf="academico.gradoId">
+              <label class="form-label text-muted small fw-medium">Sección Destino</label>
+              <select class="form-select custom-select form-select-lg mb-3" [(ngModel)]="academico.seccionId">
+                <option value="">Seleccione una sección...</option>
+                <option *ngFor="let s of secciones" [value]="s.id">{{ s.nombre }}</option>
+              </select>
+            </div>
+
+            <div class="col-12 mt-4" *ngIf="academico.gradoId && academico.seccionId">
+              <div class="p-4 bg-dark bg-opacity-50 rounded border border-secondary border-opacity-25 d-flex align-items-center">
+                <div class="bg-success bg-opacity-25 text-success rounded-circle p-3 me-3">
+                  <i class="bi bi-check-circle fs-4"></i>
+                </div>
+                <div>
+                  <h6 class="text-white mb-1">¡Vacantes Disponibles!</h6>
+                  <p class="text-muted small mb-0">La sección seleccionada cuenta con <strong class="text-white">12 vacantes</strong>. Puede proceder con la matrícula.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASO 4: PAGO MATRICULA -->
+        <div class="step-content fade-in" *ngIf="currentStep === 4">
+          <h4 class="text-white mb-4"><i class="bi bi-wallet2 me-2 text-primary"></i>Derecho de Matrícula</h4>
+          
+          <div class="row g-4">
+            <div class="col-md-6">
+              <div class="card bg-dark border border-secondary border-opacity-50 h-100">
+                <div class="card-body">
+                  <h6 class="text-muted mb-3">Resumen del Alumno</h6>
+                  <p class="text-white mb-1 fw-medium">{{ estudiante.nombres }} {{ estudiante.apellidos }}</p>
+                  <p class="text-muted small mb-3">DNI: {{ estudiante.dni }}</p>
+                  <hr class="border-secondary opacity-25">
+                  <p class="text-white mb-1">Nivel: Secundaria</p>
+                  <p class="text-white mb-0">Año Escolar: 2026</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="card bg-primary bg-opacity-10 border border-primary border-opacity-25 h-100">
+                <div class="card-body">
+                  <label class="form-label text-primary small fw-semibold">Monto a Pagar (S/)</label>
+                  <div class="input-group mb-4">
+                    <span class="input-group-text bg-transparent border-primary border-opacity-50 text-primary fs-4 fw-bold">S/</span>
+                    <input type="number" class="form-control form-control-lg bg-transparent border-primary border-opacity-50 text-white fs-4 fw-bold" [(ngModel)]="pago.monto">
+                  </div>
+
+                  <label class="form-label text-muted small fw-medium">Método de Pago</label>
+                  <select class="form-select custom-select mb-3" [(ngModel)]="pago.metodo">
+                    <option value="EFECTIVO">Efectivo (Caja)</option>
+                    <option value="TRANSFERENCIA">Transferencia Bancaria</option>
+                    <option value="YAPE_PLIN">Yape / Plin</option>
+                  </select>
+
+                  <div *ngIf="pago.metodo !== 'EFECTIVO'">
+                    <label class="form-label text-muted small fw-medium">Nro. de Operación / Referencia</label>
+                    <input type="text" class="form-control" [(ngModel)]="pago.nroOperacion" placeholder="Ej: 009876543">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botones de Navegación -->
+        <div class="d-flex justify-content-between mt-5 pt-3 border-top border-secondary border-opacity-25">
+          <button class="btn btn-outline-light px-4" (click)="prevStep()" [disabled]="currentStep === 1 || isSubmitting">
+            <i class="bi bi-arrow-left me-2"></i>Atrás
+          </button>
+          
+          <button class="btn btn-primary px-4 fw-medium btn-ai-glow" (click)="nextStep()" *ngIf="currentStep < 4" [disabled]="!canGoNext()">
+            Siguiente<i class="bi bi-arrow-right ms-2"></i>
+          </button>
+
+          <button class="btn btn-success px-4 fw-medium shadow-sm" (click)="submitMatricula()" *ngIf="currentStep === 4" [disabled]="!isStep4Valid() || isSubmitting">
+            <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <i class="bi bi-check-circle-fill me-2" *ngIf="!isSubmitting"></i>
+            {{ isSubmitting ? 'Procesando...' : 'Finalizar Matrícula' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

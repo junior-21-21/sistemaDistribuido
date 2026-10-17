@@ -1,0 +1,230 @@
+<div class="promocion">
+  <div class="pestanas" role="tablist">
+    @if (puedePromover) {
+      <button type="button" role="tab" [class.activa]="pestana() === 'promocion'" (click)="pestana.set('promocion')">
+        <span class="paso-tab">1</span> Cierre del año
+      </button>
+    }
+    <button type="button" role="tab" [class.activa]="pestana() === 'recuperacion'" (click)="pestana.set('recuperacion')">
+      <span class="paso-tab">2</span> Recuperación (ene–feb)
+      @if (pendientesRecuperacion()) { <span class="contador">{{ pendientesRecuperacion() }}</span> }
+    </button>
+    <button type="button" role="tab" [class.activa]="pestana() === 'subsanacion'" (click)="pestana.set('subsanacion')">
+      <span class="paso-tab">3</span> Áreas por subsanar
+      @if (pendientesSubsanacion()) { <span class="contador">{{ pendientesSubsanacion() }}</span> }
+    </button>
+  </div>
+
+  <div class="gratuito">
+    <i class="bi bi-gift"></i>
+    <p><b>En la IE pública la recuperación pedagógica es gratuita.</b> Es parte del servicio educativo
+      (Ley General de Educación, art. 4): no se cobra por el programa de recuperación, la evaluación ni las constancias,
+      y nada de eso puede condicionar la matrícula del año siguiente.</p>
+  </div>
+
+  @if (error()) { <div class="alert alert-danger" role="alert">{{ error() }}</div> }
+
+  <!-- ====================== 1. CIERRE DEL AÑO ====================== -->
+  @if (pestana() === 'promocion') {
+    <section class="tarjeta">
+      <h2><span class="paso">1</span> ¿Qué sección cierra el año?</h2>
+      <div class="secciones">
+        @for (s of secciones(); track s.id) {
+          <button type="button" class="seccion" [class.activa]="seccionOrigen() === s.id" (click)="elegirOrigen(s.id)">
+            <b>{{ s.gradoNombre }} {{ s.nombre }}</b><small>{{ s.turno === 'MANANA' ? 'Mañana' : 'Tarde' }}</small>
+          </button>
+        }
+      </div>
+    </section>
+
+    @if (origen(); as o) {
+      <section class="tarjeta">
+        <div class="cabecera">
+          <h2><span class="paso">2</span> Situación final de {{ o.gradoNombre }} {{ o.nombre }}</h2>
+          <button type="button" class="btn btn-sm btn-light" (click)="usarSugerencias()" [disabled]="sinNotas()">
+            <i class="bi bi-magic"></i> Usar lo que dicen las notas
+          </button>
+        </div>
+        <div class="regla">
+          <i class="bi bi-journal-bookmark"></i>
+          <div>
+            <b>Regla del MINEDU para {{ numeroGrado() }}.° grado</b>
+            @if (numeroGrado() === 2 || numeroGrado() === 5) {
+              <span>Pasa si tiene <b>A o AD</b> en la mitad o más de las competencias de <b>tres áreas</b> y B en las demás.
+                Permanece si tiene <b>C</b> en la mitad o más de las competencias de <b>cuatro o más áreas</b>. Si no, va a recuperación.</span>
+            } @else {
+              <span>Pasa si tiene al menos <b>B</b> en la mitad o más de las competencias de <b>cada área</b>.
+                Permanece si tiene <b>C</b> en más de la mitad de las competencias de <b>cuatro o más áreas</b>. Si no, va a recuperación.</span>
+            }
+            <small>RVM N.° 094-2020-MINEDU, modificada por la RVM N.° 048-2024-MINEDU.</small>
+          </div>
+        </div>
+        @if (sinNotas() && !cargando()) {
+          <p class="aviso-notas"><i class="bi bi-info-circle"></i> Esta sección aún no tiene notas registradas: el sistema no puede sugerir la situación. Decide con el acta.</p>
+        }
+
+        @if (cargando()) {
+          <div class="skeleton" style="height: 160px"></div>
+        } @else {
+          <div class="filas">
+            @for (f of filas(); track f.estudiante.id; let i = $index) {
+              <div class="fila" [class]="'fila ' + f.situacion.toLowerCase()">
+                <span class="num">{{ i + 1 }}</span>
+                <div class="nombre">
+                  <span>{{ f.estudiante.apellido }}, {{ f.estudiante.nombre }}</span>
+                  <small class="motivo" [class.distinto]="f.sugerida !== 'SIN_NOTAS' && f.sugerida !== f.situacion">
+                    @if (f.sugerida === 'SIN_NOTAS') { <i class="bi bi-dash-circle"></i> }
+                    @else { <i class="bi bi-lightbulb"></i> Sugerido: <b>{{ etiqueta(f.sugerida) }}</b> · }
+                    {{ f.motivo }}
+                  </small>
+                </div>
+                <div class="segmentado">
+                  <button type="button" [class.activo]="f.situacion === 'PROMOVIDO'" (click)="cambiarSituacion(f, 'PROMOVIDO')">
+                    {{ esUltimoGrado() ? 'Egresa' : 'Promovido' }}
+                  </button>
+                  <button type="button" [class.activo]="f.situacion === 'RECUPERACION'" (click)="cambiarSituacion(f, 'RECUPERACION')">Recuperación</button>
+                  <button type="button" [class.activo]="f.situacion === 'PERMANECE'" (click)="cambiarSituacion(f, 'PERMANECE')">Permanece</button>
+                </div>
+                @if (f.situacion === 'RECUPERACION') {
+                  <div class="areas-recuperar">
+                    <span>Recupera en:</span>
+                    @for (a of cursosDelGrado(); track a) {
+                      <button type="button" class="chip-area" [class.activo]="f.areas.has(a)" [class.sugerida]="f.areasConC.includes(a)"
+                              (click)="alternarArea(f, a)" [title]="f.areasConC.includes(a) ? 'Tiene competencias en C' : ''">
+                        {{ a }}
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
+            } @empty {
+              <div class="empty-state"><i class="bi bi-people"></i><p>Esta sección no tiene estudiantes activos.</p></div>
+            }
+          </div>
+        }
+      </section>
+
+      @if (filas().length) {
+        <section class="tarjeta confirmar">
+          <h2><span class="paso">3</span> Confirmar</h2>
+          @if (!esUltimoGrado()) {
+            <label class="destino">Sección de destino para los promovidos
+              <select class="form-select" [ngModel]="seccionDestino()" (ngModelChange)="seccionDestino.set($event)">
+                @for (d of destinos(); track d.id) { <option [ngValue]="d.id">{{ d.gradoNombre }} {{ d.nombre }} ({{ d.turno === 'MANANA' ? 'mañana' : 'tarde' }})</option> }
+              </select>
+            </label>
+          } @else {
+            <p class="ayuda">Es el último grado: los estudiantes que culminan quedan registrados como egresados.</p>
+          }
+          <div class="totales">
+            <span class="t verde"><b>{{ resumen().promovidos }}</b> {{ esUltimoGrado() ? 'egresan' : 'promovidos' }}</span>
+            <span class="t ambar"><b>{{ resumen().recuperacion }}</b> a recuperación ({{ resumen().areas }} áreas)</span>
+            <span class="t rojo"><b>{{ resumen().permanecen }}</b> permanecen</span>
+            @if (resumen().cambiados) { <span class="t gris"><i class="bi bi-pencil"></i> {{ resumen().cambiados }} cambiados a mano</span> }
+          </div>
+          <button type="button" class="btn btn-primary btn-lg" (click)="confirmar()" [disabled]="guardando()">
+            @if (guardando()) { <span class="spinner-border spinner-border-sm me-2"></span> } Registrar cierre del año
+          </button>
+        </section>
+      }
+    }
+  }
+
+  <!-- ====================== 2. RECUPERACIÓN ====================== -->
+  @if (pestana() === 'recuperacion') {
+    <section class="tarjeta">
+      <h2><i class="bi bi-sun"></i> Recuperación pedagógica (enero y febrero)</h2>
+      <p class="ayuda">El colegio la organiza al terminar el año: presencial (unas seis semanas) o con carpeta/portafolio.
+        Registra el resultado de cada área y cierra el caso: el sistema aplica la norma y deja lista la matrícula del año siguiente.</p>
+      <div class="leyenda">
+        <span class="t verde">Recupera todas → pasa de grado</span>
+        <span class="t azul">Queda 1 área en C → pasa y la subsana hasta diciembre</span>
+        <span class="t rojo">Quedan 2 o más → permanece</span>
+      </div>
+
+      @for (caso of casos(); track caso.estudianteId + '-' + caso.anioOrigen) {
+        @let p = pronostico(caso);
+        <article class="caso" [class]="'caso ' + p.clase">
+          <header class="caso-cabeza">
+            <div>
+              <strong>{{ caso.estudiante }}</strong>
+              <small>{{ caso.gradoOrigen }} · {{ caso.anioOrigen }}</small>
+            </div>
+            <span class="pronostico"><i class="bi bi-signpost-2"></i> {{ p.texto }}</span>
+          </header>
+          <div class="caso-areas">
+            @for (a of caso.areas; track a.id) {
+              <div class="area-fila" [class.ok]="a.estado === 'SUBSANADA'" [class.mal]="a.estado === 'NO_SUBSANADA'">
+                <span class="area-nombre">{{ a.cursoNombre }}</span>
+                @if (puedeCalificar) {
+                  <div class="area-acciones" role="group" [attr.aria-label]="'Resultado de ' + a.cursoNombre">
+                    @for (n of ['AD', 'A', 'B']; track n) {
+                      <button type="button" class="nota" [class.elegida]="a.estado === 'SUBSANADA' && a.calificacion === n"
+                              (click)="registrarResultado(a, 'SUBSANADA', n)" [title]="'Recuperó con ' + n">{{ n }}</button>
+                    }
+                    <button type="button" class="nota mala" [class.elegida]="a.estado === 'NO_SUBSANADA'"
+                            (click)="registrarResultado(a, 'NO_SUBSANADA', 'C')" title="No recuperó (sigue en C)">C</button>
+                  </div>
+                } @else {
+                  <span class="estado">{{ a.estado === 'PENDIENTE' ? 'Pendiente' : (a.calificacion ?? '') }}</span>
+                }
+              </div>
+            }
+          </div>
+          @if (puedePromover && p.listo) {
+            <footer class="caso-pie">
+              @if (opcionesCaso(caso).length) {
+                <label>{{ p.clase === 'permanece' ? 'Sección donde repite' : 'Sección del nuevo grado' }}
+                  <select class="form-select form-select-sm" [ngModel]="seccionDelCaso(caso)" (ngModelChange)="elegirDestinoCaso(caso, $event)">
+                    @for (s of opcionesCaso(caso); track s.id) { <option [ngValue]="s.id">{{ s.gradoNombre }} {{ s.nombre }}</option> }
+                  </select>
+                </label>
+              }
+              <button type="button" class="btn btn-primary btn-sm" (click)="cerrarCaso(caso)" [disabled]="cerrando() === caso.estudianteId">
+                @if (cerrando() === caso.estudianteId) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                <i class="bi bi-check2-circle"></i> Cerrar recuperación
+              </button>
+            </footer>
+          }
+        </article>
+      } @empty {
+        <div class="empty-state"><i class="bi bi-emoji-smile"></i><p>No hay estudiantes en recuperación pendientes de cerrar.</p></div>
+      }
+    </section>
+  }
+
+  <!-- ====================== 3. ÁREAS POR SUBSANAR ====================== -->
+  @if (pestana() === 'subsanacion') {
+    <section class="tarjeta">
+      <div class="cabecera">
+        <h2><i class="bi bi-journal-arrow-up"></i> Áreas por subsanar (hasta diciembre)</h2>
+        <select class="form-select filtro" [ngModel]="filtroSubsanacion()" (ngModelChange)="filtroSubsanacion.set($event)">
+          <option value="PENDIENTE">Pendientes</option>
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <p class="ayuda">Estudiantes que pasaron de grado llevando un área en C. Reciben acompañamiento durante el año y deben
+        llegar como mínimo a B hasta diciembre. Registra aquí el resultado de su evaluación de subsanación.</p>
+      @for (a of subsanaciones(); track a.id) {
+        <div class="area" [class.ok]="a.estado === 'SUBSANADA'" [class.mal]="a.estado === 'NO_SUBSANADA'">
+          <div class="area-datos">
+            <strong>{{ a.estudiante }}</strong>
+            <span>{{ a.cursoNombre }} · {{ a.gradoOrigen }} {{ a.anioOrigen }} @if (a.seccionId) { · hoy en {{ nombreSeccion(a.seccionId) }} }</span>
+          </div>
+          @if (a.estado === 'PENDIENTE' && puedeCalificar) {
+            <div class="area-acciones">
+              @for (n of ['AD', 'A', 'B']; track n) {
+                <button type="button" class="nota" (click)="registrarResultado(a, 'SUBSANADA', n)" [title]="'Subsanada con ' + n">{{ n }}</button>
+              }
+              <button type="button" class="nota mala" (click)="registrarResultado(a, 'NO_SUBSANADA', 'C')" title="No subsanada (C)">C</button>
+            </div>
+          } @else {
+            <span class="estado">{{ a.estado === 'PENDIENTE' ? 'Pendiente' : a.estado === 'SUBSANADA' ? 'Subsanada · ' + a.calificacion : 'No subsanada' }}</span>
+          }
+        </div>
+      } @empty {
+        <div class="empty-state"><i class="bi bi-emoji-smile"></i><p>No hay áreas por subsanar.</p></div>
+      }
+    </section>
+  }
+</div>

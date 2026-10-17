@@ -1,67 +1,70 @@
 package com.example.reportes.controller;
 
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import com.example.reportes.service.AlertaDesercionService;
+
 import reactor.core.publisher.Mono;
 
-import java.util.Map;
-import java.util.HashMap;
-import java.util.concurrent.ExecutionException;
-
-/**
- * Estadisticas agregadas para el Dashboard del Director.
- * Consulta a los demas microservicios via HTTP.
- */
 @RestController
 @RequestMapping("/api/estadisticas")
 public class EstadisticasController {
 
-    private final WebClient webClient;
+    private static final Duration TIMEOUT_SERVICIO = Duration.ofSeconds(3);
 
-    public EstadisticasController(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.build();
+    private final WebClient estudiantesClient;
+    private final WebClient cursosClient;
+    private final AlertaDesercionService alertaDesercionService;
+
+    public EstadisticasController(
+            @Qualifier("estudiantesClient") WebClient estudiantesClient,
+            @Qualifier("cursosClient") WebClient cursosClient,
+            AlertaDesercionService alertaDesercionService) {
+        this.estudiantesClient = estudiantesClient;
+        this.cursosClient = cursosClient;
+        this.alertaDesercionService = alertaDesercionService;
     }
 
     @GetMapping("/dashboard")
-    public ResponseEntity<Map<String, Object>> getDashboardStats() {
-        Map<String, Object> stats = new HashMap<>();
-        
-        try {
-            Long totalEstudiantes = webClient.get()
-                .uri("http://servicio-estudiantes:8082/api/estudiantes/count/total")
+    @PreAuthorize("hasAnyRole('DIRECTOR', 'SUBDIRECTOR')")
+    public Mono<ResponseEntity<Map<String, Object>>> getDashboardStats() {
+        Mono<Long> totalEstudiantes = consultarConteo(
+                estudiantesClient, "/api/estudiantes/count/total");
+        Mono<Long> matriculasPendientes = consultarConteo(
+                estudiantesClient, "/api/estudiantes/count/pendientes");
+        Mono<Long> docentesActivos = consultarConteo(
+                cursosClient, "/api/docentes/count");
+        Mono<Long> alertasActivas = alertaDesercionService.contarAlertasActivas();
+
+        return Mono.zip(totalEstudiantes, matriculasPendientes, docentesActivos, alertasActivas)
+                .map(conteos -> {
+                    Map<String, Object> stats = new HashMap<>();
+                    stats.put("totalEstudiantes", conteos.getT1());
+                    stats.put("matriculasPendientes", conteos.getT2());
+                    stats.put("docentesActivos", conteos.getT3());
+                    stats.put("alertasDesercion", conteos.getT4());
+                    stats.put("mensaje", "Datos sincronizados con los microservicios");
+                    return ResponseEntity.ok(stats);
+                });
+    }
+
+    private Mono<Long> consultarConteo(WebClient client, String uri) {
+        return client.get()
+                .uri(uri)
                 .retrieve()
                 .bodyToMono(Long.class)
-                .onErrorReturn(0L)
-                .toFuture().get();
-
-            Long matriculasPendientes = webClient.get()
-                .uri("http://servicio-estudiantes:8082/api/estudiantes/count/pendientes")
-                .retrieve()
-                .bodyToMono(Long.class)
-                .onErrorReturn(0L)
-                .toFuture().get();
-
-            Long docentesActivos = webClient.get()
-                .uri("http://servicio-cursos:8083/api/docentes/count")
-                .retrieve()
-                .bodyToMono(Long.class)
-                .onErrorReturn(0L)
-                .toFuture().get();
-
-            stats.put("totalEstudiantes", totalEstudiantes);
-            stats.put("docentesActivos", docentesActivos);
-            stats.put("matriculasPendientes", matriculasPendientes);
-            stats.put("alertasDesercion", 7); // Métrica pendiente de implementación real
-            stats.put("mensaje", "Datos sincronizados con los microservicios correctamente");
-        } catch (InterruptedException | ExecutionException e) {
-            stats.put("totalEstudiantes", 0);
-            stats.put("docentesActivos", 0);
-            stats.put("matriculasPendientes", 0);
-            stats.put("alertasDesercion", 7);
-            stats.put("mensaje", "Error al conectar con los microservicios");
-        }
-        
-        return ResponseEntity.ok(stats);
+                .timeout(TIMEOUT_SERVICIO)
+                .onErrorReturn(0L);
     }
 }
+

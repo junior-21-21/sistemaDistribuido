@@ -7,6 +7,8 @@ public class DocenteDTO {
     private String dni;
     private String email;
     private String especialidad;
+    private String username;
+    private Integer horasSemanalesContratadas;
     private String estado;
 
     public DocenteDTO() {}
@@ -23,6 +25,10 @@ public class DocenteDTO {
     public void setEmail(String email) { this.email = email; }
     public String getEspecialidad() { return especialidad; }
     public void setEspecialidad(String especialidad) { this.especialidad = especialidad; }
+    public String getUsername() { return username; }
+    public void setUsername(String username) { this.username = username; }
+    public Integer getHorasSemanalesContratadas() { return horasSemanalesContratadas; }
+    public void setHorasSemanalesContratadas(Integer horasSemanalesContratadas) { this.horasSemanalesContratadas = horasSemanalesContratadas; }
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
 }

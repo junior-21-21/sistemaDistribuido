@@ -7,8 +7,10 @@ import { tap, catchError } from 'rxjs/operators';
 export interface User {
   name: string;
   role: string;
+  roles: string[];
   username?: string;
   email?: string;
+  mustChangePassword?: boolean;
 }
 
 export interface LoginResponse {
@@ -16,8 +18,10 @@ export interface LoginResponse {
   username: string;
   nombre: string;
   rol: string;
+  roles?: string[];
   email: string;
   message?: string;
+  debeCambiarClave?: boolean;
 }
 
 @Injectable({
@@ -60,8 +64,10 @@ export class AuthService {
         const user: User = {
           name: res.nombre,
           role: res.rol,
+          roles: res.roles?.length ? res.roles : [res.rol],
           username: res.username,
-          email: res.email
+          email: res.email,
+          mustChangePassword: Boolean(res.debeCambiarClave)
         };
         this.setSession(user);
       })
@@ -72,6 +78,7 @@ export class AuthService {
 
   private setSession(user: User) {
     localStorage.setItem('pad_role', user.role);
+    localStorage.setItem('pad_roles', JSON.stringify(user.roles));
     localStorage.setItem('pad_user', JSON.stringify(user));
     this.currentUserSignal.set(user);
   }
@@ -79,6 +86,7 @@ export class AuthService {
   private clearStorage() {
     localStorage.removeItem('pad_token');
     localStorage.removeItem('pad_role');
+    localStorage.removeItem('pad_roles');
     localStorage.removeItem('pad_user');
     // Limpiar claves antiguas por compatibilidad
     localStorage.removeItem('token');
@@ -98,13 +106,41 @@ export class AuthService {
     return localStorage.getItem('pad_role') || localStorage.getItem('role');
   }
 
+  getRoles(): string[] {
+    const stored = localStorage.getItem('pad_roles');
+    if (stored) {
+      try {
+        const roles = JSON.parse(stored);
+        if (Array.isArray(roles)) return roles.filter(role => typeof role === 'string');
+      } catch { /* compatibilidad con sesiones anteriores */ }
+    }
+    const legacyRole = this.getRole();
+    return legacyRole ? [legacyRole] : [];
+  }
+
   hasRole(role: string): boolean {
-    return this.getRole() === role;
+    return this.getRoles().includes(role);
   }
 
   hasAnyRole(...roles: string[]): boolean {
-    const current = this.getRole();
-    return roles.includes(current || '');
+    const current = this.getRoles();
+    return roles.some(role => current.includes(role));
+  }
+
+  mustChangePassword(): boolean {
+    return Boolean(this.currentUserSignal()?.mustChangePassword);
+  }
+
+  changePassword(claveActual: string, nuevaClave: string): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.authUrl}/cambiar-clave`, {
+      claveActual,
+      nuevaClave
+    }).pipe(
+      tap(() => {
+        const user = this.currentUserSignal();
+        if (user) this.setSession({ ...user, mustChangePassword: false });
+      })
+    );
   }
 
   logout() {

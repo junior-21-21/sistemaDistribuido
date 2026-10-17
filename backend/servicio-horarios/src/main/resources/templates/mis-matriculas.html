@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head><meta charset="UTF-8"><title>Mis Matriculas</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-100 min-h-screen">
+<aside th:replace="~{fragments/nav :: nav}"></aside>
+<div class="ml-64 min-h-screen flex flex-col">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center">
+                <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-slate-800">Mis Matriculas</h1>
+                <p class="text-xs text-slate-400"
+                   th:text="${estudiante != null ? estudiante.nombreCompleto : ''}"></p>
+            </div>
+        </div>
+    </header>
+    <main class="flex-1 p-6">
+        <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-slate-800 text-slate-300 text-xs uppercase tracking-wide">
+                        <th class="px-5 py-3.5 text-left font-semibold w-10">#</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Curso</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Sec</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Docente</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Aula</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Periodo</th>
+                        <th class="px-5 py-3.5 text-left font-semibold">Fecha</th>
+                        <th class="px-5 py-3.5 text-center font-semibold">Estado</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <tr th:if="${matriculas == null or #lists.isEmpty(matriculas)}">
+                        <td colspan="8" class="px-5 py-12 text-center text-slate-400">
+                            No tienes matriculas registradas
+                        </td>
+                    </tr>
+                    <tr th:each="m, i : ${matriculas}" class="hover:bg-slate-50 transition">
+                        <td class="px-5 py-3.5 text-slate-400 font-mono text-xs" th:text="${i.count}"></td>
+                        <td class="px-5 py-3.5 font-semibold text-slate-800"
+                            th:text="${m.seccion.curso.nombre}"></td>
+                        <td class="px-5 py-3.5 text-center">
+                            <span class="bg-orange-50 text-orange-700 font-bold text-xs px-2 py-1 rounded-lg"
+                                  th:text="${m.seccion.nombre}"></span>
+                        </td>
+                        <td class="px-5 py-3.5 text-slate-600"
+                            th:text="${m.seccion.docente != null ? m.seccion.docente.nombreCompleto : '—'}"></td>
+                        <td class="px-5 py-3.5 text-slate-600"
+                            th:text="${m.seccion.aula != null ? m.seccion.aula.codigo : '—'}"></td>
+                        <td class="px-5 py-3.5 text-slate-600" th:text="${m.seccion.periodo.nombre}"></td>
+                        <td class="px-5 py-3.5 text-slate-500 text-xs" th:text="${m.fechaMatricula}"></td>
+                        <td class="px-5 py-3.5 text-center">
+                            <span th:class="${m.estado == 'MATRICULADO'}
+                                  ? 'bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-1 rounded-full'
+                                  : 'bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full'"
+                                  th:text="${m.estado}"></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+</div>
+</body>
+</html>

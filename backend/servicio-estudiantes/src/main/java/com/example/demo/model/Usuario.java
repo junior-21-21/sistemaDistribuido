@@ -1,6 +1,12 @@
 package com.example.demo.model;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import jakarta.persistence.Column;
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -42,12 +48,27 @@ public class Usuario {
 	@Column(nullable = false)
 	private String rol;
 
+	@ElementCollection(fetch = FetchType.EAGER)
+	@CollectionTable(name = "usuario_roles", joinColumns = @JoinColumn(name = "usuario_id"))
+	@Column(name = "rol", nullable = false, length = 50)
+	private Set<String> roles = new LinkedHashSet<>();
+
 	@Column(nullable = false)
 	private String estado = "ACTIVO";
+
+	@Column(name = "ultimo_acceso")
+	private LocalDateTime ultimoAcceso;
+
+	@Column(name = "debe_cambiar_clave")
+	private Boolean debeCambiarClave = false;
 
 	@ManyToOne(fetch = FetchType.EAGER)
 	@JoinColumn(name = "estudiante_id")
 	private Estudiante estudiante;
+
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "apoderado_id", unique = true)
+	private Apoderado apoderado;
 
 	public Usuario() {
 	}
@@ -110,6 +131,24 @@ public class Usuario {
 
 	public void setRol(String rol) {
 		this.rol = rol;
+		if (rol != null && !rol.isBlank()) {
+			if (roles == null) roles = new LinkedHashSet<>();
+			roles.add(rol);
+		}
+	}
+
+	public Set<String> getRoles() {
+		if ((roles == null || roles.isEmpty()) && rol != null && !rol.isBlank()) {
+			return Set.of(rol);
+		}
+		return roles;
+	}
+
+	public void setRoles(Set<String> roles) {
+		this.roles = roles == null ? new LinkedHashSet<>() : new LinkedHashSet<>(roles);
+		if (!this.roles.isEmpty() && (rol == null || !this.roles.contains(rol))) {
+			this.rol = this.roles.iterator().next();
+		}
 	}
 
 	public String getEstado() {
@@ -120,6 +159,22 @@ public class Usuario {
 		this.estado = estado;
 	}
 
+	public LocalDateTime getUltimoAcceso() {
+		return ultimoAcceso;
+	}
+
+	public void setUltimoAcceso(LocalDateTime ultimoAcceso) {
+		this.ultimoAcceso = ultimoAcceso;
+	}
+
+	public Boolean getDebeCambiarClave() {
+		return debeCambiarClave;
+	}
+
+	public void setDebeCambiarClave(Boolean debeCambiarClave) {
+		this.debeCambiarClave = debeCambiarClave;
+	}
+
 
 
 	public Estudiante getEstudiante() {
@@ -128,5 +183,13 @@ public class Usuario {
 
 	public void setEstudiante(Estudiante estudiante) {
 		this.estudiante = estudiante;
+	}
+
+	public Apoderado getApoderado() {
+		return apoderado;
+	}
+
+	public void setApoderado(Apoderado apoderado) {
+		this.apoderado = apoderado;
 	}
 }

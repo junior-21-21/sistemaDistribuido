@@ -7,6 +7,9 @@ export const authGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
 
   if (authService.isLoggedIn()) {
+    if (authService.mustChangePassword() && state.url !== '/cambiar-clave') {
+      return router.parseUrl('/cambiar-clave');
+    }
     return true;
   }
   

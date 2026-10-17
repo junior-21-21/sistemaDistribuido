@@ -3,11 +3,13 @@ package com.example.demo.config;
 import com.example.demo.model.TicketMantenimiento;
 import com.example.demo.repository.TicketMantenimientoRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 
 @Component
+@ConditionalOnProperty(name = "app.seed-demo-data", havingValue = "true")
 public class DataInitializer implements CommandLineRunner {
 
     private final TicketMantenimientoRepository ticketRepository;

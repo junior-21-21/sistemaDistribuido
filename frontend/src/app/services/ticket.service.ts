@@ -4,16 +4,15 @@ import { Observable } from 'rxjs';
 
 export interface TicketMantenimiento {
   id?: number;
-  aulaId?: number;
+  aulaId: number;
   docenteId?: number;
-  titulo: string;
+  categoria: 'MOBILIARIO' | 'ELECTRICO' | 'PLOMERIA' | 'TECNOLOGIA' | 'OTROS';
   descripcion: string;
-  tipo: string;
-  prioridad?: string;
-  estado?: string;
-  fechaCreacion?: string;
+  urgencia: 'BAJA' | 'MEDIA' | 'ALTA' | 'EMERGENCIA';
+  estado?: 'PENDIENTE' | 'EN_PROCESO' | 'RESUELTO';
+  fechaReporte?: string;
   fechaResolucion?: string;
-  creadoPor?: string;
+  notasResolucion?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -28,7 +27,7 @@ export class TicketService {
     return this.http.post<TicketMantenimiento>('/api/tickets', ticket);
   }
 
-  actualizarEstado(id: number, estado: string): Observable<TicketMantenimiento> {
-    return this.http.patch<TicketMantenimiento>(`/api/tickets/${id}/estado`, { estado });
+  actualizarEstado(id: number, estado: string, notasResolucion?: string): Observable<TicketMantenimiento> {
+    return this.http.put<TicketMantenimiento>(`/api/tickets/${id}/estado`, { estado, notasResolucion });
   }
 }

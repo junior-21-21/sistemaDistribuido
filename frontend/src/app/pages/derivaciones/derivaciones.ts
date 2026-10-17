@@ -1,21 +1,13 @@
-import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
-import { AuthService } from '../../core/services/auth.service';
+import { forkJoin } from 'rxjs';
 
-interface Derivacion {
-  id: number;
-  estudianteId: number;
-  docenteDerivadorId: number;
-  motivo: string;
-  descripcion: string;
-  prioridad: string;
-  estado: string;
-  fechaDerivacion: string;
-  fechaAtencion?: string;
-  notasPsicologo?: string;
-}
+import { AuthService } from '../../core/services/auth.service';
+import { DerivacionPsicologica, DerivacionService } from '../../services/derivacion.service';
+import { Estudiante, EstudianteService } from '../../services/estudiante.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RealtimeService } from '../../core/realtime/realtime.service';
 
 @Component({
   selector: 'app-derivaciones',
@@ -25,94 +17,100 @@ interface Derivacion {
   styleUrl: './derivaciones.css'
 })
 export class Derivaciones implements OnInit {
-  private http = inject(HttpClient);
-  private cdr = inject(ChangeDetectorRef);
+  private readonly realtime = inject(RealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  derivaciones: Derivacion[] = [];
+  private readonly derivacionService = inject(DerivacionService);
+  private readonly estudianteService = inject(EstudianteService);
+  private readonly authService = inject(AuthService);
+  private readonly cdr = inject(ChangeDetectorRef);
+
+  derivaciones: DerivacionPsicologica[] = [];
+  estudiantes: Estudiante[] = [];
   loading = true;
   error = '';
-  isDirector = false;
-  
+  puedeCrear = !this.authService.hasRole('PSICOLOGO');
+  puedeVerNotas = this.authService.hasAnyRole('DIRECTOR', 'PSICOLOGO');
   showModal = false;
   submitting = false;
-  nuevaDerivacion = {
-    estudianteId: 1,
-    motivo: 'RENDIMIENTO',
-    prioridad: 'NORMAL',
-    descripcion: ''
-  };
+  nuevaDerivacion = this.formularioVacio();
 
-  estudiantesMock = [
-    { id: 1, nombre: 'Andres Suni Mamani' },
-    { id: 2, nombre: 'Natalia Ayala Rojas' },
-    { id: 3, nombre: 'Emilio Huaman Torres' },
-    { id: 4, nombre: 'Daniela Palacios Quispe' }
-  ];
-
-  constructor(private authService: AuthService) {
-    this.isDirector = this.authService.hasRole('DIRECTOR');
+  ngOnInit(): void {
+    // Se actualiza solo cuando otra persona registra cambios.
+    this.realtime.alCambiar('derivaciones').pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => { this.cargarDatos(); });
+    this.cargarDatos();
   }
 
-  ngOnInit() {
-    this.cargarDerivaciones();
-  }
-
-  cargarDerivaciones() {
+  cargarDatos(): void {
     this.loading = true;
-    this.http.get<Derivacion[]>('/api/derivaciones').subscribe({
-      next: (data) => {
-        this.derivaciones = data;
+    this.error = '';
+    forkJoin({
+      derivaciones: this.derivacionService.getDerivaciones(),
+      estudiantes: this.estudianteService.getEstudiantes()
+    }).subscribe({
+      next: data => {
+        this.derivaciones = data.derivaciones;
+        this.estudiantes = data.estudiantes;
+        this.nuevaDerivacion.estudianteId = this.estudiantes[0]?.id ?? 0;
         this.loading = false;
         this.cdr.detectChanges();
       },
       error: () => {
-        this.error = 'No se pudo conectar al servidor de tutoría.';
+        this.error = 'No se pudieron cargar las derivaciones y estudiantes.';
         this.loading = false;
         this.cdr.detectChanges();
       }
     });
   }
 
-  abrirModal() {
+  abrirModal(): void {
+    this.nuevaDerivacion = {
+      ...this.formularioVacio(),
+      estudianteId: this.estudiantes[0]?.id ?? 0
+    };
+    this.error = '';
     this.showModal = true;
-    this.nuevaDerivacion.descripcion = '';
   }
 
-  cerrarModal() {
+  cerrarModal(): void {
     this.showModal = false;
   }
 
-  guardarDerivacion() {
-    if (!this.nuevaDerivacion.descripcion.trim()) return;
+  guardarDerivacion(): void {
+    if (!this.nuevaDerivacion.estudianteId || !this.nuevaDerivacion.descripcion.trim()) return;
     this.submitting = true;
-    
-    const payload = {
-      ...this.nuevaDerivacion,
-      docenteDerivadorId: 2
-    };
-
-    this.http.post<Derivacion>('/api/derivaciones', payload).subscribe({
-      next: (derivacion) => {
-        this.derivaciones.unshift(derivacion);
+    this.error = '';
+    this.derivacionService.crearDerivacion(this.nuevaDerivacion).subscribe({
+      next: derivacion => {
+        this.derivaciones = [derivacion, ...this.derivaciones];
         this.submitting = false;
         this.cerrarModal();
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: error => {
         this.submitting = false;
-        alert('Error al crear la derivación.');
+        this.error = error.error?.message || 'No se pudo crear la derivación.';
         this.cdr.detectChanges();
       }
     });
   }
 
-  getEstudianteNombre(id: number) {
-    const est = this.estudiantesMock.find((e: any) => e.id == id);
-    return est ? est.nombre : `Estudiante ${id}`;
+  getEstudianteNombre(id: number): string {
+    const estudiante = this.estudiantes.find(item => item.id === id);
+    return estudiante ? `${estudiante.nombre} ${estudiante.apellido}` : `Estudiante ${id}`;
   }
 
-  getBadgeClass(prioridad: string) {
-    if (prioridad === 'URGENTE') return 'bg-danger';
-    return 'bg-info text-dark';
+  getBadgeClass(prioridad: string): string {
+    return prioridad === 'URGENTE' ? 'bg-danger' : 'bg-info text-dark';
+  }
+
+  private formularioVacio(): DerivacionPsicologica {
+    return {
+      estudianteId: 0,
+      motivo: 'RENDIMIENTO',
+      prioridad: 'NORMAL',
+      descripcion: ''
+    };
   }
 }

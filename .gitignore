@@ -1,0 +1,14 @@
+.env
+*.log
+*.tgz
+*.tar.gz
+
+**/target/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/playwright-report/
+frontend/test-results/
+
+uploads/
+backend/servicio-estudiantes/uploads/

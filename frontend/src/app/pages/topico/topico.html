@@ -1,11 +1,17 @@
 <div class="topico-container">
-  <div class="page-header mb-4">
-    <h1 class="page-title mb-1">🏥 Módulo de Tópico y Salud Escolar</h1>
-    <p class="text-muted small">I.E.P. Huamanga — Fichas Médicas y Registro de Atenciones</p>
-  </div>
+  <app-live-banner [modulos]="['atenciones-medicas', 'fichas-medicas']" (refrescar)="refrescarEnVivo()"></app-live-banner>
+  <header class="page-header mb-4">
+    <span class="eyebrow"><i class="bi bi-heart-pulse"></i> Salud escolar</span>
+    <h1>Tópico</h1>
+    <p>Fichas médicas y atenciones. Ante un malestar se atiende, se avisa al apoderado y, si es grave, se traslada al
+      establecimiento de salud más cercano (SIS).</p>
+  </header>
 
   @if (savedMessage) {
     <div class="alert alert-success mb-4 fw-medium">{{ savedMessage }}</div>
+  }
+  @if (error) {
+    <div class="alert alert-danger mb-4 fw-medium">{{ error }}</div>
   }
 
   <div class="row g-4">
@@ -14,10 +20,13 @@
       <div class="card border-0 h-100">
         <div class="card-header bg-transparent pt-4 pb-3 px-4 border-0">
           <h5 class="mb-3 fw-bold">Fichas Médicas</h5>
-          <input type="text" class="form-control" placeholder="🔍 Buscar por nombre o grado..." [(ngModel)]="searchTerm">
+          <input type="search" class="form-control" placeholder="Buscar por nombre o grado…" [(ngModel)]="searchTerm">
         </div>
         <div class="card-body p-0">
           <div class="student-list">
+            @if (loading) {
+              <div class="p-4 text-center text-muted">Cargando fichas médicas…</div>
+            }
             @for (ficha of fichasFiltradas; track ficha.id) {
               <button class="student-item w-100 text-start px-4 py-3 border-0" [class.selected]="selectedFicha?.id === ficha.id" (click)="seleccionar(ficha)">
                 <div class="d-flex align-items-center gap-3">
@@ -28,8 +37,8 @@
                     <div class="fw-semibold small">{{ ficha.apellido }}, {{ ficha.nombre }}</div>
                     <div class="text-muted" style="font-size: 0.72rem;">{{ ficha.grado }} &nbsp;·&nbsp; Tipo {{ ficha.tipoSangre }}</div>
                   </div>
-                  @if (ficha.condiciones !== 'Ninguna') {
-                    <span class="ms-auto badge" style="background: rgba(245,158,11,0.15); color: #f59e0b; font-size: 0.65rem;">Condición</span>
+                  @if (ficha.condicionesCronicas && ficha.condicionesCronicas !== 'Ninguna') {
+                    <span class="ms-auto badge" style="background: var(--warn-soft); color: var(--warn); font-size: 0.65rem;">Condición</span>
                   }
                 </div>
               </button>
@@ -54,13 +63,13 @@
               <div class="col-6">
                 <div class="info-card p-3 rounded-3">
                   <div class="text-muted small mb-1">Tipo de Sangre</div>
-                  <div class="fw-bold fs-5" style="color: #ef4444;">{{ selectedFicha.tipoSangre }}</div>
+                  <div class="fw-bold fs-5" style="color: var(--bad);">{{ selectedFicha.tipoSangre }}</div>
                 </div>
               </div>
               <div class="col-6">
                 <div class="info-card p-3 rounded-3">
                   <div class="text-muted small mb-1">Última Atención</div>
-                  <div class="fw-bold">{{ selectedFicha.ultimaAtencion }}</div>
+                  <div class="fw-bold">{{ atenciones.length ? (atenciones[0].fechaAtencion | date:'dd/MM/yyyy HH:mm') : 'Sin atenciones' }}</div>
                 </div>
               </div>
               <div class="col-6">
@@ -72,7 +81,7 @@
               <div class="col-6">
                 <div class="info-card p-3 rounded-3">
                   <div class="text-muted small mb-1">Condiciones Crónicas</div>
-                  <div class="fw-medium" [class.text-warning]="selectedFicha.condiciones !== 'Ninguna'">{{ selectedFicha.condiciones }}</div>
+                  <div class="fw-medium" [class.text-warning]="selectedFicha.condicionesCronicas && selectedFicha.condicionesCronicas !== 'Ninguna'">{{ selectedFicha.condicionesCronicas || 'Ninguna' }}</div>
                 </div>
               </div>
             </div>
@@ -88,22 +97,75 @@
                   <label class="form-label">Diagnóstico</label>
                   <textarea class="form-control" rows="2" placeholder="Diagnóstico de la enfermera..." [(ngModel)]="nuevaAtencion.diagnostico"></textarea>
                 </div>
-                <div class="mb-4">
+                <div class="mb-3">
                   <label class="form-label">Tratamiento / Medicación</label>
                   <input type="text" class="form-control" placeholder="ej. Paracetamol 500mg, reposo..." [(ngModel)]="nuevaAtencion.tratamiento">
                 </div>
+                <div class="mb-3">
+                  <label class="form-label">¿Qué pasó después?</label>
+                  <div class="destinos">
+                    <label [class.activo]="nuevaAtencion.destino === 'RETORNA_AULA'"><input type="radio" name="destino" value="RETORNA_AULA" [(ngModel)]="nuevaAtencion.destino"> Volvió al aula</label>
+                    <label [class.activo]="nuevaAtencion.destino === 'RETIRADO_APODERADO'"><input type="radio" name="destino" value="RETIRADO_APODERADO" [(ngModel)]="nuevaAtencion.destino"> Lo recogió el apoderado</label>
+                    <label [class.activo]="nuevaAtencion.destino === 'TRASLADO_SALUD'"><input type="radio" name="destino" value="TRASLADO_SALUD" [(ngModel)]="nuevaAtencion.destino"> Traslado a centro de salud</label>
+                  </div>
+                </div>
+                @if (nuevaAtencion.destino === 'TRASLADO_SALUD') {
+                  <div class="row g-2 mb-3">
+                    <div class="col-md-8">
+                      <label class="form-label">Establecimiento de salud</label>
+                      <input type="text" class="form-control" maxlength="150" placeholder="ej. Centro de Salud San Juan Bautista" [(ngModel)]="nuevaAtencion.establecimientoSalud">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                      <label class="form-check mb-2"><input class="form-check-input" type="checkbox" [(ngModel)]="nuevaAtencion.cubiertoSis"> <span class="form-check-label">Atendido con SIS</span></label>
+                    </div>
+                  </div>
+                }
+                <label class="form-check mb-4">
+                  <input class="form-check-input" type="checkbox" [(ngModel)]="nuevaAtencion.apoderadoAvisado">
+                  <span class="form-check-label">Ya llamé al apoderado (si no, el sistema le envía un aviso)</span>
+                </label>
                 <div class="d-flex gap-2">
-                  <button class="btn btn-primary" (click)="registrarAtencion()">Registrar Atención</button>
+                  <button class="btn btn-primary" (click)="registrarAtencion()" [disabled]="!formularioValido() || submitting">
+                    {{ submitting ? 'Registrando…' : 'Registrar Atención' }}
+                  </button>
                   <button class="btn btn-outline-secondary" (click)="showNuevaAtencion = false">Cancelar</button>
                 </div>
               </div>
             }
+
+            <div class="mt-4">
+              <h6 class="fw-bold mb-3">Historial de atenciones</h6>
+              @if (atencionesLoading) {
+                <div class="text-muted small">Cargando historial…</div>
+              } @else if (!atenciones.length) {
+                <div class="text-muted small">Aún no hay atenciones registradas.</div>
+              } @else {
+                <div class="d-flex flex-column gap-2">
+                  @for (atencion of atenciones; track atencion.id) {
+                    <div class="info-card p-3 rounded-3">
+                      <div class="d-flex justify-content-between gap-3 mb-2">
+                        <strong>{{ atencion.motivo }}</strong>
+                        <small class="text-muted">{{ atencion.fechaAtencion | date:'dd/MM/yyyy HH:mm' }}</small>
+                      </div>
+                      <div class="small"><strong>Diagnóstico:</strong> {{ atencion.diagnostico }}</div>
+                      <div class="small"><strong>Tratamiento:</strong> {{ atencion.tratamiento }}</div>
+                      @if (atencion.destino && atencion.destino !== 'RETORNA_AULA') {
+                        <div class="small mt-1"><span class="badge" [style.background]="atencion.destino === 'TRASLADO_SALUD' ? 'var(--bad-soft)' : 'var(--warn-soft)'"
+                          [style.color]="atencion.destino === 'TRASLADO_SALUD' ? 'var(--bad)' : 'var(--warn)'">
+                          {{ atencion.destino === 'TRASLADO_SALUD' ? 'Trasladado a ' + (atencion.establecimientoSalud || 'centro de salud') + (atencion.cubiertoSis ? ' (SIS)' : '') : 'Retirado por el apoderado' }}</span></div>
+                      }
+                      <div class="text-muted mt-1" style="font-size: 0.7rem;">Registrado por {{ atencion.registradoPor }}@if (atencion.apoderadoAvisado) { · apoderado avisado }</div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
           </div>
         </div>
       } @else {
         <div class="card border-0 d-flex align-items-center justify-content-center" style="min-height: 300px;">
           <div class="text-center text-muted">
-            <div style="font-size: 3rem;">🏥</div>
+            <i class="bi bi-heart-pulse d-block" style="font-size: 3rem;"></i>
             <p class="mt-3">Selecciona un estudiante para ver su ficha médica</p>
           </div>
         </div>

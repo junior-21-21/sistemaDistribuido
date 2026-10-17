@@ -1,9 +1,10 @@
-<div class="layout-container">
-  <app-sidebar></app-sidebar>
-  <div class="main-content">
-    <app-navbar></app-navbar>
-    <main class="page-content">
-      <router-outlet></router-outlet>
-    </main>
-  </div>
+<a class="saltar" href="#contenido">Saltar al contenido</a>
+<app-sidebar></app-sidebar>
+<div class="main-content" [class.compacto]="layout.menuCompacto()">
+  <app-navbar></app-navbar>
+  <main id="contenido" class="page-content" tabindex="-1">
+    <router-outlet></router-outlet>
+  </main>
 </div>
+<app-command-palette></app-command-palette>
+<app-toast-stack></app-toast-stack>

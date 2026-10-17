@@ -1,10 +1,14 @@
-import { Component, OnInit, ChangeDetectorRef, inject } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { EstudianteService, Estudiante } from '../../services/estudiante.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ApoderadoService, Apoderado } from '../../core/services/apoderado.service';
+import { Nota, NotaService } from '../../services/nota.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { RealtimeService } from '../../core/realtime/realtime.service';
+import { ContinuarSeccion, SeccionRecordada, UltimaSeccionService } from '../../shared/continuar-seccion/continuar-seccion';
 
 export interface DocumentoAdjunto {
   id: number;
@@ -14,27 +18,35 @@ export interface DocumentoAdjunto {
   fechaSubida: string;
 }
 
-const GRADOS: Record<number, string> = {
-  1: '1° Primaria', 2: '2° Primaria', 3: '3° Primaria',
-  4: '4° Primaria', 5: '5° Primaria', 6: '6° Primaria',
-  7: '1° Secundaria', 8: '2° Secundaria', 9: '3° Secundaria',
-  10: '4° Secundaria', 11: '5° Secundaria'
-};
+const GRADOS: Record<number, string> = {};
 
 @Component({
   selector: 'app-estudiantes',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule],
+  imports: [ContinuarSeccion, CommonModule, ReactiveFormsModule, FormsModule],
   templateUrl: './estudiantes.html',
   styleUrl: './estudiantes.css',
 })
 export class Estudiantes implements OnInit {
+  private readonly ultimaSeccion = inject(UltimaSeccionService);
+  private readonly realtime = inject(RealtimeService);
+  private readonly destroyRef = inject(DestroyRef);
+
   estudiantes: Estudiante[] = [];
   estudiantesFiltrados: Estudiante[] = [];
   loading = true;
   error = '';
+
+  // Navegacion por cajones
+  vistaActual: 'grados' | 'secciones' | 'estudiantes' = 'grados';
+  gradoNavegacion: any = null;
+  seccionNavegacion: any = null;
   searchTerm = '';
   successMessage = '';
+  paginaActual = 0;
+  totalPaginas = 0;
+  totalEstudiantes = 0;
+  readonly tamanoPagina = 20;
 
   estudianteForm: FormGroup;
   submitting = false;
@@ -46,8 +58,18 @@ export class Estudiantes implements OnInit {
   estudianteSeleccionado: Estudiante | null = null;
   documentos: DocumentoAdjunto[] = [];
   archivoSeleccionado: File | null = null;
+  documentoError = '';
   tipoDocSeleccionado = 'DNI';
   isSecretariaOrDirector = false;
+  trasladoDe: Estudiante | null = null;
+  // Cambio de sección dentro del grado (traslado interno)
+  puedeCambiarSeccion = false;
+  cambioDe: Estudiante | null = null;
+  cambio = { seccionDestinoId: null as number | null, motivo: '' };
+  opcionesCambio: { id: number; etiqueta: string; ocupados: number; capacidad: number; llena: boolean }[] = [];
+  cargandoOpciones = false;
+  traslado = { ieDestino: '', codigoModular: '', fecha: new Date().toISOString().slice(0, 10), motivo: '' };
+  puedeMatricular = false;
 
   // Variables para Asistente de Matrícula (Wizard)
   wizardStep = 1; // 1: Buscar Apoderado, 2: Crear/Validar Apoderado, 3: Estudiante
@@ -57,11 +79,19 @@ export class Estudiantes implements OnInit {
   buscandoApoderado = false;
   apoderadoEncontrado = false;
   apoderadoForm: FormGroup;
+  parentesco = 'MADRE';
+  permisoRetiro = true;
+  consentimientoAcademico = false;
+  consentimientoSalud = false;
+  consentimientoComunicaciones = false;
+  evidenciaConsentimiento = '';
+  matriculaError = '';
 
   estudianteExistenteDni = '';
   estudianteMatricula: Estudiante | null = null;
   buscandoEstudiante = false;
   historialNotas: any[] = [];
+  historialMensaje = '';
   situacionFinal: 'PROMOVIDO' | 'PROMOVIDO_CON_CARGO' | 'REPITENTE' | 'RECUPERACION' | '' = '';
   
   gradoLabels = GRADOS;
@@ -73,9 +103,12 @@ export class Estudiantes implements OnInit {
     private apoderadoService: ApoderadoService,
     private fb: FormBuilder,
     private http: HttpClient,
-    private authService: AuthService
+    private authService: AuthService,
+    private notaService: NotaService
   ) {
     this.isSecretariaOrDirector = this.authService.hasRole('SECRETARIA') || this.authService.hasRole('DIRECTOR');
+    this.puedeCambiarSeccion = this.authService.hasAnyRole('SECRETARIA', 'DIRECTOR', 'SUBDIRECTOR');
+    this.puedeMatricular = this.authService.hasRole('SECRETARIA');
     
     this.apoderadoForm = this.fb.group({
       nombre: ['', [Validators.required]],
@@ -97,20 +130,30 @@ export class Estudiantes implements OnInit {
   }
 
   ngOnInit(): void {
-    this.cargarEstudiantes();
+    // Se actualiza solo cuando otra persona registra cambios.
+    this.realtime.alCambiar('estudiantes', 'documentos', 'consentimientos').pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => { this.cargarEstudiantes(this.paginaActual); });
+    this.cargarSecciones();
   }
 
-  cargarEstudiantes(): void {
+  cargarEstudiantes(pagina = 0): void {
     this.loading = true;
     this.error = '';
-    this.cargarSecciones();
-    
-    this.estudianteService.getEstudiantes().subscribe({
+    let secciones = this.seccionesBase;
+    if (this.filtroNivel) secciones = secciones.filter(s => s.nivelNombre === this.filtroNivel);
+    if (this.filtroTurno) secciones = secciones.filter(s => s.turno === this.filtroTurno);
+    if (this.filtroSeccion) secciones = secciones.filter(s => s.id === Number(this.filtroSeccion));
+    const seccionIds = (this.filtroNivel || this.filtroTurno || this.filtroSeccion) ? secciones.map(s => Number(s.id)) : [];
+    const gradoId = this.filtroGrado ? Number(this.filtroGrado) : undefined;
+
+    this.estudianteService.getEstudiantesPage(pagina, this.tamanoPagina, this.searchTerm, gradoId, seccionIds).subscribe({
       next: (data) => {
-        this.estudiantes = data;
-        this.estudiantesFiltrados = data;
+        this.estudiantes = data.content;
+        this.estudiantesFiltrados = data.content;
+        this.paginaActual = data.number;
+        this.totalPaginas = data.totalPages;
+        this.totalEstudiantes = data.totalElements;
         this.loading = false;
-        this.filtrar();
         this.cdr.detectChanges();
       },
       error: (err) => {
@@ -124,7 +167,7 @@ export class Estudiantes implements OnInit {
   }
 
   seccionesBase: any[] = [];
-  filtroNivel = '';
+  filtroNivel = 'SECUNDARIA';
   filtroGrado = '';
   filtroSeccion = '';
   filtroTurno = '';
@@ -133,6 +176,7 @@ export class Estudiantes implements OnInit {
     this.http.get<any[]>('/api/secciones').subscribe({
       next: (data) => {
         this.seccionesBase = data;
+        this.cargarEstudiantes(0);
         this.cdr.detectChanges();
       },
       error: () => {
@@ -143,27 +187,34 @@ export class Estudiantes implements OnInit {
   }
 
   filtrar(): void {
-    const t = this.searchTerm.toLowerCase();
-    
-    this.estudiantesFiltrados = this.estudiantes.filter(e => {
-      // 1. Text Search
-      const matchText = e.nombre.toLowerCase().includes(t) ||
-                        e.apellido.toLowerCase().includes(t) ||
-                        e.dni.includes(t) ||
-                        (e.email || '').toLowerCase().includes(t);
-      if (!matchText) return false;
+    this.cargarEstudiantes(0);
+  }
 
-      // Find section info for the student
-      const secInfo = this.seccionesBase.find(s => s.id === e.seccionId);
-      
-      // 2. Filters
-      if (this.filtroNivel && secInfo?.nivelNombre !== this.filtroNivel) return false;
-      if (this.filtroGrado && secInfo?.gradoId.toString() !== this.filtroGrado) return false;
-      if (this.filtroSeccion && secInfo?.id.toString() !== this.filtroSeccion) return false;
-      if (this.filtroTurno && secInfo?.turno !== this.filtroTurno) return false;
-      
-      return true;
-    });
+  exportarLista(): void {
+    if (!this.seccionNavegacion) return;
+    const filas = this.estudiantes.map(e => [e.dni, e.apellido, e.nombre, e.email, e.telefono, e.estado ?? '']);
+    const escapar = (valor: unknown) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+    const csv = [['DNI', 'Apellidos', 'Nombres', 'Email', 'Teléfono', 'Estado'], ...filas]
+      .map(fila => fila.map(escapar).join(';'))
+      .join('\r\n');
+    // BOM para que Excel reconozca UTF-8 (tildes y ñ).
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = `estudiantes-${this.gradoNavegacion?.nombre ?? 'grado'}-${this.seccionNavegacion?.nombre ?? 'seccion'}.csv`
+      .replace(/\s+/g, '_');
+    enlace.click();
+    URL.revokeObjectURL(url);
+    this.successMessage = `Se exportaron ${filas.length} estudiantes de la página actual.`;
+    this.cdr.detectChanges();
+    setTimeout(() => { this.successMessage = ''; this.cdr.detectChanges(); }, 3000);
+  }
+
+
+  cambiarPagina(delta: number): void {
+    const destino = this.paginaActual + delta;
+    if (destino >= 0 && destino < this.totalPaginas) this.cargarEstudiantes(destino);
   }
 
   gradoLabel(id: number): string {
@@ -213,19 +264,46 @@ export class Estudiantes implements OnInit {
     return Array.from(uniqueMap.values());
   }
 
+  get gradosMatricula(): any[] {
+    const unicos = new Map<number, any>();
+    this.seccionesBase
+      .filter(s => s.activa !== false && s.nivelNombre === 'SECUNDARIA')
+      .forEach(s => unicos.set(Number(s.gradoId), { id: Number(s.gradoId), nombre: s.gradoNombre }));
+    return Array.from(unicos.values()).sort((a, b) => a.id - b.id);
+  }
+
+  get seccionesMatricula(): any[] {
+    const gradoId = Number(this.estudianteForm.get('gradoId')?.value);
+    const anio = new Date().getFullYear();
+    return this.seccionesBase.filter(s => s.activa !== false
+      && s.nivelNombre === 'SECUNDARIA'
+      && Number(s.gradoId) === gradoId
+      && (!s.anioEscolar || Number(s.anioEscolar) === anio));
+  }
+
   abrirModal(): void {
     this.wizardStep = 1;
     this.apoderadoDni = '';
     this.apoderadoActual = null;
     this.apoderadoEncontrado = false;
     this.apoderadoForm.reset();
+    this.parentesco = 'MADRE';
+    this.permisoRetiro = true;
+    this.consentimientoAcademico = false;
+    this.consentimientoSalud = false;
+    this.consentimientoComunicaciones = false;
+    this.evidenciaConsentimiento = '';
+    this.matriculaError = '';
     
     this.modoEstudiante = 'NUEVO';
     this.estudianteExistenteDni = '';
     this.estudianteMatricula = null;
     this.historialNotas = [];
     this.situacionFinal = '';
-    this.estudianteForm.reset({ gradoId: 1, seccionId: 1 });
+    const primerGrado = this.gradosMatricula[0]?.id ?? null;
+    const primeraSeccion = this.seccionesBase.find(s => Number(s.gradoId) === primerGrado
+      && s.nivelNombre === 'SECUNDARIA' && s.activa !== false)?.id ?? null;
+    this.estudianteForm.reset({ gradoId: primerGrado, seccionId: primeraSeccion, email: '', telefono: '' });
     
     this.showModal = true;
   }
@@ -234,34 +312,32 @@ export class Estudiantes implements OnInit {
     this.showModal = false;
   }
 
+  cambiarGradoMatricula(): void {
+    this.estudianteForm.patchValue({ seccionId: this.seccionesMatricula[0]?.id ?? null });
+  }
+
   // --- WIZARD LOGIC ---
   buscarApoderado(): void {
     if (this.apoderadoDni.length !== 8) return;
     this.buscandoApoderado = true;
     
-    // Como el backend no tiene GET /api/apoderados/dni/{dni} explícitamente listado,
-    // usamos el listarTodos() y filtramos localmente (solo por demostración)
-    this.apoderadoService.listarTodos().subscribe({
-      next: (todos) => {
-        const found = todos.find(a => a.dni === this.apoderadoDni);
+    this.apoderadoService.buscarPorDni(this.apoderadoDni).subscribe({
+      next: (found) => {
         this.buscandoApoderado = false;
-        if (found) {
-          this.apoderadoActual = found;
-          this.apoderadoEncontrado = true;
-          this.wizardStep = 3; // Ir directo a seleccionar/crear estudiante
-        } else {
-          this.apoderadoEncontrado = false;
-          this.apoderadoForm.patchValue({ dni: this.apoderadoDni });
-          this.wizardStep = 2; // Mostrar formulario de registro de apoderado
-        }
+        this.apoderadoActual = found;
+        this.apoderadoEncontrado = true;
+        this.wizardStep = 3;
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: (response) => {
         this.buscandoApoderado = false;
-        // Asumir no encontrado si falla
-        this.apoderadoEncontrado = false;
-        this.apoderadoForm.patchValue({ dni: this.apoderadoDni });
-        this.wizardStep = 2;
+        if (response.status === 404) {
+          this.apoderadoEncontrado = false;
+          this.apoderadoForm.patchValue({ dni: this.apoderadoDni });
+          this.wizardStep = 2;
+        } else {
+          this.error = 'No se pudo consultar el DNI del apoderado.';
+        }
         this.cdr.detectChanges();
       }
     });
@@ -293,57 +369,74 @@ export class Estudiantes implements OnInit {
     if (this.estudianteExistenteDni.length !== 8) return;
     this.buscandoEstudiante = true;
     
-    const found = this.estudiantes.find(e => e.dni === this.estudianteExistenteDni);
-    this.buscandoEstudiante = false;
-    
-    if (found) {
-      this.estudianteMatricula = found;
-      this.cargarHistorialYCalcularSituacion(found.id!);
-    } else {
-      alert('Estudiante no encontrado en la base de datos. Por favor regístrelo como NUEVO.');
-    }
-    this.cdr.detectChanges();
+    this.estudianteService.getEstudiantesPage(0, 2, this.estudianteExistenteDni).subscribe({
+      next: page => {
+        this.buscandoEstudiante = false;
+        const found = page.content.find(e => e.dni === this.estudianteExistenteDni);
+        if (found) {
+          this.estudianteMatricula = found;
+          this.cargarHistorialYCalcularSituacion(found.id!);
+        } else {
+          alert('Estudiante no encontrado en la base de datos. Por favor regístrelo como NUEVO.');
+        }
+        this.cdr.detectChanges();
+      },
+      error: () => { this.buscandoEstudiante = false; this.error = 'No se pudo buscar al estudiante.'; this.cdr.detectChanges(); }
+    });
   }
 
   cargarHistorialYCalcularSituacion(estudianteId: number): void {
-    // Simular el historial ya que el api real podría no tener notas cargadas aún
-    // En un caso real llamaríamos a this.http.get(`/api/notas/estudiante/${estudianteId}`)
     this.loading = true;
-    setTimeout(() => {
-      // Mocked calculation logic
-      const promedioAnual = Math.floor(Math.random() * 9) + 11; // 11 to 20
-      this.historialNotas = [
-        { curso: 'Matemática', notaFinal: promedioAnual },
-        { curso: 'Comunicación', notaFinal: promedioAnual > 12 ? promedioAnual - 1 : promedioAnual + 2 },
-        { curso: 'Ciencia y Tecnología', notaFinal: promedioAnual + 1 }
-      ];
-      
-      const hayJalados = this.historialNotas.some(n => n.notaFinal < 11);
-      
-      if (!hayJalados) {
-        this.situacionFinal = 'PROMOVIDO';
-        // Auto-increment grado
-        if (this.estudianteMatricula?.gradoId) {
-          const sg = this.estudianteMatricula.gradoId + 1;
-          this.estudianteForm.patchValue({ gradoId: sg > 11 ? 11 : sg }); // Max 11
-        }
-      } else {
-        const cantJalados = this.historialNotas.filter(n => n.notaFinal < 11).length;
-        if (cantJalados === 1) {
-          this.situacionFinal = 'PROMOVIDO_CON_CARGO';
-          if (this.estudianteMatricula?.gradoId) {
-            const sg = this.estudianteMatricula.gradoId + 1;
-            this.estudianteForm.patchValue({ gradoId: sg > 11 ? 11 : sg });
+    this.historialMensaje = '';
+    this.notaService.getNotasPorEstudiante(estudianteId).subscribe({
+      next: notas => {
+        this.historialNotas = this.resumirNotasPorCurso(notas);
+        if (!this.historialNotas.length) {
+          this.situacionFinal = '';
+          this.historialMensaje = 'No hay notas registradas. La situación final debe revisarse manualmente.';
+        } else {
+          const cursosDesaprobados = this.historialNotas.filter(nota => nota.notaFinal < 11).length;
+          this.situacionFinal = cursosDesaprobados === 0
+            ? 'PROMOVIDO'
+            : cursosDesaprobados === 1 ? 'PROMOVIDO_CON_CARGO' : 'REPITENTE';
+          const gradoActual = this.estudianteMatricula?.gradoId;
+          if (gradoActual) {
+            const gradoDestino = this.situacionFinal === 'REPITENTE'
+              ? gradoActual
+              : Math.min(gradoActual + 1, 11);
+            this.estudianteForm.patchValue({ gradoId: gradoDestino });
           }
-        } else if (cantJalados >= 2) {
-          this.situacionFinal = 'REPITENTE';
-          this.estudianteForm.patchValue({ gradoId: this.estudianteMatricula?.gradoId });
         }
+        this.loading = false;
+        this.wizardStep = 4;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.loading = false;
+        this.historialNotas = [];
+        this.situacionFinal = '';
+        this.historialMensaje = 'No se pudo consultar el historial. No se calculó una situación final.';
+        this.wizardStep = 4;
+        this.cdr.detectChanges();
       }
-      this.loading = false;
-      this.wizardStep = 4;
-      this.cdr.detectChanges();
-    }, 600);
+    });
+  }
+
+  private resumirNotasPorCurso(notas: Nota[]): Array<{ curso: string; notaFinal: number }> {
+    const grupos = new Map<number, Nota[]>();
+    notas.forEach(nota => grupos.set(nota.cursoId, [...(grupos.get(nota.cursoId) ?? []), nota]));
+    return Array.from(grupos.entries()).map(([cursoId, registros]) => {
+      const valores = registros.map(nota => nota.valorNumerico ?? this.valorEscala(nota.escalaLiteral));
+      const promedio = valores.reduce((total, valor) => total + valor, 0) / valores.length;
+      return {
+        curso: registros[0].competencia || `Curso ${cursoId}`,
+        notaFinal: Math.round(promedio * 10) / 10
+      };
+    });
+  }
+
+  private valorEscala(escala?: string): number {
+    return ({ AD: 18, A: 15, B: 12, C: 9 } as Record<string, number>)[escala ?? ''] ?? 0;
   }
 
   guardarEstudiante(): void {
@@ -352,6 +445,7 @@ export class Estudiantes implements OnInit {
       return;
     }
     this.submitting = true;
+    this.matriculaError = '';
     
     // Si es nuevo o promoción
     let estudianteData = this.modoEstudiante === 'NUEVO' ? this.estudianteForm.value : {
@@ -360,10 +454,28 @@ export class Estudiantes implements OnInit {
        seccionId: this.estudianteForm.get('seccionId')?.value
     };
 
+    if (!this.apoderadoActual?.id) {
+      this.submitting = false;
+      this.matriculaError = 'Selecciona o registra un apoderado antes de confirmar la matrícula.';
+      return;
+    }
+    estudianteData = {
+      ...estudianteData,
+      email: estudianteData.email?.trim() || null,
+      telefono: estudianteData.telefono?.trim() || null
+    };
     const isUpdate = this.modoEstudiante === 'EXISTENTE' && estudianteData.id;
-    const request = isUpdate 
-      ? this.http.put(`/api/estudiantes/${estudianteData.id}`, estudianteData)
-      : this.estudianteService.createEstudiante(estudianteData);
+    const request = this.estudianteService.matricular({
+      estudiante: estudianteData,
+      apoderadoId: this.apoderadoActual.id,
+      parentesco: this.parentesco,
+      permisoRetiro: this.permisoRetiro,
+      consentimientos: [
+        { finalidad: 'DATOS_ACADEMICOS', accion: this.consentimientoAcademico ? 'OTORGADO' : 'DENEGADO', evidencia: this.evidenciaConsentimiento },
+        { finalidad: 'SALUD', accion: this.consentimientoSalud ? 'OTORGADO' : 'DENEGADO', evidencia: this.evidenciaConsentimiento },
+        { finalidad: 'COMUNICACIONES', accion: this.consentimientoComunicaciones ? 'OTORGADO' : 'DENEGADO', evidencia: this.evidenciaConsentimiento }
+      ]
+    });
 
     request.subscribe({
       next: (data: any) => {
@@ -383,7 +495,10 @@ export class Estudiantes implements OnInit {
       },
       error: (err) => {
         this.submitting = false;
-        alert('Error al guardar la matrícula.');
+        const primerMensaje = Object.values(err.error || {}).find(value => typeof value === 'string');
+        this.matriculaError = err.error?.message
+          || (typeof primerMensaje === 'string' ? primerMensaje : '')
+          || 'No se pudo guardar la matrícula. Revisa los datos e inténtalo nuevamente.';
         this.cdr.detectChanges();
       }
     });
@@ -403,6 +518,7 @@ export class Estudiantes implements OnInit {
     this.estudianteSeleccionado = null;
     this.documentos = [];
     this.archivoSeleccionado = null;
+    this.documentoError = '';
   }
 
   cargarDocumentos(estudianteId: number): void {
@@ -420,23 +536,36 @@ export class Estudiantes implements OnInit {
     });
   }
 
-  onFileSelected(event: any): void {
-    const file = event.target.files[0];
-    if (file) {
-      this.archivoSeleccionado = file;
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.documentoError = '';
+    this.archivoSeleccionado = null;
+    if (!file) return;
+
+    const tiposPermitidos = ['application/pdf', 'image/jpeg', 'image/png'];
+    if (!tiposPermitidos.includes(file.type)) {
+      this.documentoError = 'Solo se permiten archivos PDF, JPEG o PNG.';
+      input.value = '';
+      return;
     }
+    if (file.size > 10 * 1024 * 1024) {
+      this.documentoError = 'El archivo supera el límite de 10 MB.';
+      input.value = '';
+      return;
+    }
+    this.archivoSeleccionado = file;
   }
 
   subirDocumento(): void {
     if (!this.archivoSeleccionado || !this.estudianteSeleccionado) return;
     
     this.submitting = true;
+    this.documentoError = '';
     const formData = new FormData();
-    formData.append('archivo', this.archivoSeleccionado); // Match con @RequestParam("archivo") original (o "file" que usa el Service en Backend?) Wait, the controller I made used "archivo", but the existing one uses "file"
     formData.append('file', this.archivoSeleccionado);
     formData.append('tipoDocumento', this.tipoDocSeleccionado);
 
-    // El endpoint actual es POST /api/estudiantes/{estudianteId}/documentos
     this.http.post(`/api/estudiantes/${this.estudianteSeleccionado.id}/documentos`, formData).subscribe({
       next: () => {
         this.submitting = false;
@@ -446,16 +575,162 @@ export class Estudiantes implements OnInit {
         }
         this.cdr.detectChanges();
       },
-      error: () => {
+      error: (error) => {
         this.submitting = false;
-        alert('Error al subir el documento. (Verifique que el backend esté disponible)');
+        this.documentoError = error.error?.message || error.error || 'No se pudo subir el documento.';
         this.cdr.detectChanges();
       }
     });
   }
 
-  descargarDocumento(docId: number): void {
+  // === NAVEGACION POR CAJONES ===
+  /** Abre directamente la última sección usada (salta los pasos de grado y sección). */
+  continuarUltima(seccion: SeccionRecordada): void {
+    this.navegarAGrado({ id: seccion.gradoId, nombre: seccion.gradoNombre });
+    this.navegarASeccion(seccion);
+  }
+
+  navegarAGrado(grado: any): void {
+    this.gradoNavegacion = grado;
+    this.vistaActual = 'secciones';
+  }
+
+  navegarASeccion(seccion: any): void {
+    this.ultimaSeccion.guardar(seccion);
+    this.seccionNavegacion = seccion;
+    this.filtroGrado = seccion.gradoId?.toString();
+    this.filtroSeccion = seccion.id?.toString();
+    this.vistaActual = 'estudiantes';
+    this.filtrar();
+  }
+
+  volverAGrados(): void {
+    this.vistaActual = 'grados';
+    this.gradoNavegacion = null;
+    this.seccionNavegacion = null;
+    this.filtroGrado = '';
+    this.filtroSeccion = '';
+  }
+
+  volverASecciones(): void {
+    this.vistaActual = 'secciones';
+    this.seccionNavegacion = null;
+    this.filtroSeccion = '';
+  }
+
+  getSeccionesDelGradoNav(): any[] {
+    if (!this.gradoNavegacion) return [];
+    return this.seccionesBase.filter(s => s.gradoId?.toString() === this.gradoNavegacion.id?.toString());
+  }
+
+  getSeccionesMananaNav(): any[] {
+    return this.getSeccionesDelGradoNav().filter(s => s.turno === 'MANANA');
+  }
+
+  getSeccionesTardeNav(): any[] {
+    return this.getSeccionesDelGradoNav().filter(s => s.turno === 'TARDE');
+  }
+
+  contarEstudiantesEnSeccion(seccionId: number): string {
+    return '...';
+  }
+
+  descargarDocumento(documento: DocumentoAdjunto): void {
     if (!this.estudianteSeleccionado) return;
-    window.open(`/api/estudiantes/${this.estudianteSeleccionado.id}/documentos/${docId}/descargar`, '_blank');
+    this.documentoError = '';
+    this.http.get(
+      `/api/estudiantes/${this.estudianteSeleccionado.id}/documentos/${documento.id}/descargar`,
+      { responseType: 'blob' }
+    ).subscribe({
+      next: contenido => {
+        const url = URL.createObjectURL(contenido);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = documento.nombreArchivo;
+        enlace.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.documentoError = 'No se pudo descargar el documento.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  abrirTraslado(est: Estudiante): void {
+    this.trasladoDe = est;
+    this.traslado = { ieDestino: '', codigoModular: '', fecha: new Date().toISOString().slice(0, 10), motivo: '' };
+  }
+
+  confirmarTraslado(): void {
+    const est = this.trasladoDe;
+    if (!est?.id || !this.traslado.ieDestino.trim()) return;
+    this.submitting = true;
+    this.estudianteService.trasladarSalida(est.id, this.traslado).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.trasladoDe = null;
+        this.successMessage = `${est.nombre} ${est.apellido} quedó registrado como trasladado.`;
+        this.cargarEstudiantes(this.paginaActual);
+        this.cdr.detectChanges();
+      },
+      error: error => {
+        this.submitting = false;
+        this.error = error.error?.message || 'No se pudo registrar el traslado.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  abrirCambioSeccion(est: Estudiante): void {
+    this.cambioDe = est;
+    this.cambio = { seccionDestinoId: null, motivo: '' };
+    const anio = new Date().getFullYear();
+    const candidatas = this.seccionesBase.filter(s => s.activa !== false && s.anioEscolar === anio
+      && Number(s.gradoId) === Number(est.gradoId) && Number(s.id) !== Number(est.seccionId));
+    this.opcionesCambio = [];
+    this.cargandoOpciones = true;
+    // Los estudiantes activos por sección salen del estado de nóminas.
+    this.http.get<{ seccionId: number; estudiantes: number }[]>('/api/nominas', { params: { anio } }).subscribe({
+      next: estados => {
+        const ocupados = new Map(estados.map(e => [e.seccionId, e.estudiantes]));
+        this.opcionesCambio = candidatas.map(s => {
+          const n = ocupados.get(Number(s.id)) ?? 0;
+          const capacidad = Number(s.capacidadMaxima) || 0;
+          return { id: Number(s.id), etiqueta: `${s.gradoNombre ?? ''} ${s.nombre} · ${s.turno === 'TARDE' ? 'Tarde' : 'Mañana'}`.trim(),
+            ocupados: n, capacidad, llena: capacidad > 0 && n >= capacidad };
+        });
+        this.cargandoOpciones = false;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.opcionesCambio = candidatas.map(s => ({ id: Number(s.id), etiqueta: `${s.gradoNombre ?? ''} ${s.nombre}`.trim(),
+          ocupados: 0, capacidad: Number(s.capacidadMaxima) || 0, llena: false }));
+        this.cargandoOpciones = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  confirmarCambioSeccion(): void {
+    const est = this.cambioDe;
+    const destino = this.cambio.seccionDestinoId;
+    if (!est?.id || destino == null || this.cambio.motivo.trim().length < 5) return;
+    this.submitting = true;
+    this.estudianteService.cambiarSeccion(est.id, destino, this.cambio.motivo.trim()).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.cambioDe = null;
+        const etiqueta = this.opcionesCambio.find(o => o.id === destino)?.etiqueta ?? 'la nueva sección';
+        this.successMessage = `${est.nombre} ${est.apellido} pasó a ${etiqueta}.`;
+        this.cargarEstudiantes(this.paginaActual);
+        this.cdr.detectChanges();
+      },
+      error: error => {
+        this.submitting = false;
+        this.error = error.error?.message || 'No se pudo cambiar de sección.';
+        this.cdr.detectChanges();
+      }
+    });
   }
 }

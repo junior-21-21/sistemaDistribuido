@@ -1,0 +1,234 @@
+<section class="page-container permisos">
+  <header class="page-header mb-4">
+    <span class="eyebrow"><i class="bi bi-envelope-paper"></i> Convivencia y asistencia</span>
+    <h1>Permisos y justificaciones</h1>
+    <p>
+      @if (esPortero) {
+        Papeletas de salida aprobadas para hoy. Verifica el DNI de quien recoge antes de dejar salir al estudiante.
+      } @else {
+        El apoderado acude al auxiliar o al tutor para justificar faltas o pedir una salida. Los permisos de varios días
+        los registra Secretaría y los aprueba Dirección.
+      }
+    </p>
+  </header>
+
+  @if (!esPortero) {
+    <nav class="segmentos mb-4" aria-label="Vistas">
+      <button type="button" [class.activo]="vista() === 'solicitudes'" (click)="cambiarVista('solicitudes')">
+        <i class="bi bi-inbox"></i> Solicitudes
+        @if (filtroEstado === 'PENDIENTE' && pendientes()) { <span class="contador">{{ pendientes() }}</span> }
+      </button>
+      <button type="button" [class.activo]="vista() === 'salidas'" (click)="cambiarVista('salidas')">
+        <i class="bi bi-door-open"></i> Salidas de hoy
+        @if (salidasPorRegistrar()) { <span class="contador">{{ salidasPorRegistrar() }}</span> }
+      </button>
+      @if (puedeRegistrar) {
+        <button type="button" [class.activo]="vista() === 'registrar'" (click)="cambiarVista('registrar')">
+          <i class="bi bi-plus-lg"></i> Registrar
+        </button>
+      }
+    </nav>
+  }
+
+  @if (error()) { <div class="alert alert-danger">{{ error() }}</div> }
+
+  @switch (vista()) {
+    @case ('solicitudes') {
+      <div class="glass-panel p-3 mb-3 filtros">
+        <div>
+          <label class="form-label" for="f-estado">Estado</label>
+          <select id="f-estado" class="form-select" [(ngModel)]="filtroEstado" (ngModelChange)="recargar()">
+            <option value="PENDIENTE">Pendientes</option>
+            <option value="APROBADA">Aprobadas</option>
+            <option value="RECHAZADA">Rechazadas</option>
+            <option value="">Todas</option>
+          </select>
+        </div>
+        <div class="flex-grow-1">
+          <label class="form-label" for="f-texto">Estudiante</label>
+          <input id="f-texto" class="form-control" type="search" placeholder="Nombre o DNI"
+                 [ngModel]="texto()" (ngModelChange)="texto.set($event)">
+        </div>
+        <p class="ayuda mb-0">Se muestran los últimos 30 días y los permisos de los próximos 60.</p>
+      </div>
+
+      <div class="tarjetas">
+        @for (p of visibles(); track p.id) {
+          <article class="glass-panel tarjeta" [attr.data-tipo]="p.tipo">
+            <header>
+              <span class="tipo"><i class="bi" [class.bi-clipboard-check]="p.tipo === 'JUSTIFICACION'"
+                 [class.bi-door-open]="p.tipo === 'PAPELETA_SALIDA'" [class.bi-calendar-range]="p.tipo === 'PERMISO'"></i>
+                {{ tipos[p.tipo] }}</span>
+              <span class="estado-chip" [attr.data-estado]="p.estado">{{ p.estado }}</span>
+            </header>
+            <h2>{{ p.estudianteNombre }}</h2>
+            <p class="meta">DNI {{ p.estudianteDni }}@if (nombreSeccion(p.seccionId)) { · {{ nombreSeccion(p.seccionId) }} }</p>
+            <dl>
+              <div><dt>Fecha</dt><dd>{{ rango(p) }}@if (p.horaSalida) { · {{ hora(p.horaSalida) }} }</dd></div>
+              @if (p.personaRecoge) { <div><dt>Recoge</dt><dd>{{ p.personaRecoge }}@if (p.dniPersonaRecoge) { · DNI {{ p.dniPersonaRecoge }} }</dd></div> }
+              <div><dt>Solicitó</dt><dd>{{ p.origen === 'APODERADO' ? 'Apoderado (portal)' : p.solicitadoPor }}</dd></div>
+              @if (p.revisadoPor) { <div><dt>Revisó</dt><dd>{{ p.revisadoPor }} · {{ p.fechaRevision | date:'dd/MM HH:mm' }}</dd></div> }
+            </dl>
+            <p class="motivo">{{ p.motivo }}</p>
+            @if (p.observacionRevision) { <p class="observacion"><i class="bi bi-chat-left-text"></i> {{ p.observacionRevision }}</p> }
+            @if (p.asistenciasJustificadas) {
+              <p class="justificadas"><i class="bi bi-check2-circle"></i> {{ p.asistenciasJustificadas }} registro(s) de asistencia justificados</p>
+            }
+            @if (puedeRevisar(p)) {
+              <footer><button class="btn btn-primary btn-sm" type="button" (click)="abrirRevision(p)">Revisar</button></footer>
+            } @else if (p.estado === 'PENDIENTE' && p.tipo === 'PERMISO') {
+              <footer><span class="ayuda">Espera la aprobación de Dirección</span></footer>
+            }
+          </article>
+        } @empty {
+          <div class="glass-panel p-5 text-center text-muted vacio">
+            {{ cargando() ? 'Cargando solicitudes…' : 'No hay solicitudes con este filtro.' }}
+          </div>
+        }
+      </div>
+    }
+
+    @case ('salidas') {
+      <div class="salidas">
+        @for (p of salidas(); track p.id) {
+          <article class="glass-panel salida" [class.hecha]="p.fechaSalida">
+            <div class="hora-grande">{{ hora(p.horaSalida) }}</div>
+            <div class="flex-grow-1">
+              <h2>{{ p.estudianteNombre }}</h2>
+              <p class="meta">DNI {{ p.estudianteDni }}@if (nombreSeccion(p.seccionId)) { · {{ nombreSeccion(p.seccionId) }} }</p>
+              <p class="recoge"><i class="bi bi-person-badge"></i> Recoge: <strong>{{ p.personaRecoge }}</strong>
+                @if (p.dniPersonaRecoge) { · DNI <strong>{{ p.dniPersonaRecoge }}</strong> }</p>
+              <p class="motivo">{{ p.motivo }} · Aprobó {{ p.revisadoPor }}</p>
+            </div>
+            @if (p.fechaSalida) {
+              <span class="estado-chip" data-estado="APROBADA"><i class="bi bi-check2"></i> Salió {{ p.fechaSalida | date:'HH:mm' }}</span>
+            } @else if (registraSalida) {
+              <button class="btn btn-primary" type="button" (click)="marcarSalida(p)"><i class="bi bi-box-arrow-right"></i> Registrar salida</button>
+            }
+          </article>
+        } @empty {
+          <div class="glass-panel p-5 text-center text-muted">
+            {{ cargando() ? 'Cargando…' : 'No hay papeletas de salida aprobadas para hoy.' }}
+          </div>
+        }
+      </div>
+    }
+
+    @case ('registrar') {
+      <form class="glass-panel p-4 registro" (ngSubmit)="registrar()" #f="ngForm">
+        <fieldset>
+          <legend>Estudiante</legend>
+          @if (elegido(); as e) {
+            <div class="elegido">
+              <div class="avatar">{{ e.nombre[0] }}{{ e.apellido[0] }}</div>
+              <div class="flex-grow-1"><strong>{{ e.apellido }}, {{ e.nombre }}</strong><br>
+                <small class="text-muted">DNI {{ e.dni }}@if (nombreSeccion(e.seccionId)) { · {{ nombreSeccion(e.seccionId) }} }</small></div>
+              <button type="button" class="btn btn-outline-primary btn-sm" (click)="quitarEstudiante()">Cambiar</button>
+            </div>
+          } @else {
+            <div class="buscador">
+              <input class="form-control" type="search" name="consulta" placeholder="Escribe el nombre o el DNI del estudiante"
+                     [(ngModel)]="consulta" (ngModelChange)="busqueda$.next($event)" autocomplete="off">
+              @if (sugerencias().length) {
+                <ul class="sugerencias">
+                  @for (e of sugerencias(); track e.id) {
+                    <li><button type="button" (click)="elegir(e)"><strong>{{ e.apellido }}, {{ e.nombre }}</strong>
+                      <small>DNI {{ e.dni }} · {{ nombreSeccion(e.seccionId) }}</small></button></li>
+                  }
+                </ul>
+              }
+            </div>
+          }
+        </fieldset>
+
+        <fieldset>
+          <legend>Tipo</legend>
+          <div class="tipos">
+            @for (t of tiposDisponibles(); track t) {
+              <label class="opcion" [class.activa]="form.tipo === t">
+                <input type="radio" name="tipo" [value]="t" [ngModel]="form.tipo" (ngModelChange)="cambiarTipo($event)">
+                <strong>{{ tipos[t] }}</strong>
+                <small>
+                  @switch (t) {
+                    @case ('JUSTIFICACION') { Faltas o tardanzas ya ocurridas (hasta 30 días atrás). }
+                    @case ('PAPELETA_SALIDA') { Retiro durante la jornada de hoy; portería verifica a quien recoge. }
+                    @case ('PERMISO') { Ausencia prevista de varios días (máx. 60). Lo aprueba Dirección. }
+                  }
+                </small>
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <fieldset class="grid">
+          <legend>Detalle</legend>
+          <div>
+            <label class="form-label" for="desde">{{ form.tipo === 'PAPELETA_SALIDA' ? 'Fecha' : 'Desde' }}</label>
+            <input id="desde" class="form-control" type="date" name="desde" required [(ngModel)]="form.fechaDesde"
+                   [max]="form.tipo === 'JUSTIFICACION' ? hoy() : ''" [disabled]="form.tipo === 'PAPELETA_SALIDA'">
+          </div>
+          @if (form.tipo !== 'PAPELETA_SALIDA') {
+            <div>
+              <label class="form-label" for="hasta">Hasta</label>
+              <input id="hasta" class="form-control" type="date" name="hasta" [(ngModel)]="form.fechaHasta" [min]="form.fechaDesde"
+                     [max]="form.tipo === 'JUSTIFICACION' ? hoy() : ''">
+            </div>
+          } @else {
+            <div>
+              <label class="form-label" for="hora">Hora de salida</label>
+              <input id="hora" class="form-control" type="time" name="hora" required [(ngModel)]="form.horaSalida">
+            </div>
+            <div>
+              <label class="form-label" for="recoge">Persona que recoge</label>
+              <input id="recoge" class="form-control" name="recoge" required maxlength="150" [(ngModel)]="form.personaRecoge">
+            </div>
+            <div>
+              <label class="form-label" for="dni-recoge">DNI de quien recoge</label>
+              <input id="dni-recoge" class="form-control" name="dniRecoge" inputmode="numeric" pattern="\d{8}" maxlength="8"
+                     [(ngModel)]="form.dniPersonaRecoge">
+            </div>
+          }
+          <div class="ancho">
+            <label class="form-label" for="motivo">Motivo</label>
+            <textarea id="motivo" class="form-control" name="motivo" rows="3" required minlength="5" maxlength="400"
+                      placeholder="Por ejemplo: cita médica en el centro de salud, con constancia."
+                      [(ngModel)]="form.motivo"></textarea>
+          </div>
+          @if (puedeAprobarAhora()) {
+            <label class="form-check ancho">
+              <input class="form-check-input" type="checkbox" name="aprobar" [(ngModel)]="form.aprobarAhora">
+              <span class="form-check-label">Aprobar ahora (el apoderado está presente o trajo el sustento)</span>
+            </label>
+          }
+        </fieldset>
+
+        <footer>
+          <button class="btn btn-outline-primary" type="button" (click)="cambiarVista('solicitudes')">Cancelar</button>
+          <button class="btn btn-primary" type="submit" [disabled]="enviando() || f.invalid || !elegido()">
+            {{ enviando() ? 'Guardando…' : 'Registrar' }}
+          </button>
+        </footer>
+      </form>
+    }
+  }
+
+  @if (revisando(); as p) {
+    <div class="modal-fondo" (click)="revisando.set(null)" role="presentation">
+      <div class="glass-panel dialogo" role="dialog" aria-modal="true" aria-labelledby="titulo-revision" (click)="$event.stopPropagation()">
+        <h2 id="titulo-revision">{{ tipos[p.tipo] }}</h2>
+        <p><strong>{{ p.estudianteNombre }}</strong> · {{ rango(p) }}@if (p.horaSalida) { · {{ hora(p.horaSalida) }} }</p>
+        <p class="motivo">{{ p.motivo }}</p>
+        <label class="form-label" for="obs">Observación (obligatoria si rechazas)</label>
+        <textarea id="obs" class="form-control" rows="2" maxlength="300" [(ngModel)]="observacion"></textarea>
+        @if (p.tipo !== 'PAPELETA_SALIDA') {
+          <p class="ayuda mt-2">Al aprobar, las faltas y tardanzas de esas fechas pasan a "Justificado".</p>
+        }
+        <footer>
+          <button class="btn btn-outline-primary" type="button" (click)="revisando.set(null)">Cancelar</button>
+          <button class="btn btn-outline-danger" type="button" [disabled]="enviando()" (click)="decidir(false)">Rechazar</button>
+          <button class="btn btn-primary" type="button" [disabled]="enviando()" (click)="decidir(true)">Aprobar</button>
+        </footer>
+      </div>
+    </div>
+  }
+</section>

@@ -1,51 +1,96 @@
-<div class="navbar-wrapper">
-  <header class="app-navbar glass-panel d-flex align-items-center px-4">
-    <!-- Fecha y hora en vivo -->
-    <div class="date-time d-flex align-items-center gap-3">
-      <div class="time-box">
-        <i class="bi bi-clock-history time-icon"></i>
-        <span class="current-time fw-bold">{{ currentTime }}</span>
+<header class="topbar">
+  <button type="button" class="icono" (click)="layout.alternarMenu()" aria-label="Mostrar u ocultar el menú" title="Menú">
+    <i class="bi bi-layout-sidebar"></i>
+  </button>
+
+  <div class="titulo">
+    @if (seccion(); as s) {
+      <h1><i class="bi" [class]="s.icon" aria-hidden="true"></i>{{ s.label }}</h1>
+      <p>{{ s.descripcion }}</p>
+    } @else {
+      <h1>Plataforma académica</h1>
+    }
+  </div>
+
+  <button type="button" class="buscar" (click)="layout.buscadorAbierto.set(true)" aria-label="Buscar o ir a una pantalla">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <span>Buscar o ir a…</span>
+    <kbd>{{ esMac ? '⌘' : 'Ctrl' }} K</kbd>
+  </button>
+
+  <span class="vivo" [class]="'vivo ' + realtime.estado()" [attr.title]="'Actualizaciones en tiempo real: ' + estadoTexto()">
+    <span class="punto" aria-hidden="true"></span>
+    <span class="vivo-texto">{{ estadoTexto() }}</span>
+  </span>
+
+  <div class="desplegable">
+    <button type="button" class="icono" (click)="alternarPanel()" [class.activo]="panelAbierto()"
+            [attr.aria-expanded]="panelAbierto()" aria-label="Actividad en vivo" title="Actividad en vivo">
+      <i class="bi bi-bell"></i>
+      @if (realtime.noLeidos() > 0) {
+        <span class="contador">{{ realtime.noLeidos() > 9 ? '9+' : realtime.noLeidos() }}</span>
+      }
+    </button>
+    @if (panelAbierto()) {
+      <div class="panel" role="dialog" aria-label="Actividad en vivo">
+        <div class="panel-cabecera">
+          <strong>Actividad en vivo</strong>
+          <span class="mini-vivo" [class.on]="realtime.enVivo()">{{ estadoTexto() }}</span>
+        </div>
+        <div class="panel-lista">
+          @for (evento of realtime.eventos(); track evento.id) {
+            <button type="button" class="evento" (click)="abrirEvento(evento.modulo)">
+              <span class="evento-icono" [class]="'evento-icono ' + evento.accion.toLowerCase()">
+                <i class="bi" [class]="iconoModulo(evento.modulo)"></i>
+              </span>
+              <span class="evento-texto">
+                <span><strong>{{ evento.propio ? 'Tú' : evento.actor }}</strong> {{ evento.descripcion }}</span>
+                <small>{{ evento.fecha | haceTiempo: ahora() }}</small>
+              </span>
+            </button>
+          } @empty {
+            <div class="vacio">
+              <i class="bi bi-broadcast" aria-hidden="true"></i>
+              <p>Aquí verás al instante lo que registran tus colegas: notas, asistencia, incidencias, tickets…</p>
+            </div>
+          }
+        </div>
       </div>
-      <span class="current-date text-muted">{{ currentDate }}</span>
-    </div>
+    }
+  </div>
 
-    <!-- Espaciador -->
-    <div class="flex-grow-1"></div>
+  <button type="button" class="icono" (click)="theme.alternar()"
+          [attr.aria-label]="theme.tema() === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'"
+          [title]="theme.tema() === 'dark' ? 'Tema claro' : 'Tema oscuro'">
+    <i class="bi" [class.bi-moon-stars]="theme.tema() === 'light'" [class.bi-sun]="theme.tema() === 'dark'"></i>
+  </button>
 
-    <!-- Estado del sistema -->
-    <div class="d-flex align-items-center gap-4">
-      
-      <!-- Indicador de estado -->
-      <div class="status-indicator d-flex align-items-center gap-2" title="Conexión estable">
-        <span class="status-dot"></span>
-        <span class="status-text text-muted">Sistema en línea</span>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Institución -->
-      <div class="institution-info d-flex align-items-center gap-2 text-muted">
-        <i class="bi bi-building"></i>
-        <span>I.E.P. Huamanga</span>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Usuario actual (nombre + rol) -->
-      @if (authService.currentUser(); as user) {
-        <div class="user-profile d-flex align-items-center gap-3">
-          <div class="user-info text-end">
-            <div class="user-name">{{ user.name }}</div>
-            <div class="role-pill">{{ user.role }}</div>
+  @if (usuario(); as user) {
+    <div class="desplegable">
+      <button type="button" class="usuario" (click)="alternarMenuUsuario()" [attr.aria-expanded]="menuUsuarioAbierto()" aria-label="Mi cuenta">
+        <span class="avatar">{{ iniciales() }}</span>
+      </button>
+      @if (menuUsuarioAbierto()) {
+        <div class="panel panel-usuario" role="menu">
+          <div class="cuenta">
+            <span class="avatar grande">{{ iniciales() }}</span>
+            <div>
+              <strong>{{ user.name }}</strong>
+              <small>{{ user.username }}</small>
+            </div>
           </div>
-          <div class="avatar-circle">
-            {{ user.name.charAt(0) }}
+          <div class="chips">
+            @for (rol of roles(); track rol) { <span class="chip">{{ rol }}</span> }
           </div>
-          <button class="btn-logout" (click)="authService.logout()" title="Cerrar sesión">
-            <i class="bi bi-box-arrow-right"></i>
+          <a class="opcion" routerLink="/cambiar-clave" role="menuitem"><i class="bi bi-key"></i>Cambiar contraseña</a>
+          <button type="button" class="opcion" (click)="theme.alternar()" role="menuitem">
+            <i class="bi bi-circle-half"></i>Tema {{ theme.tema() === 'dark' ? 'claro' : 'oscuro' }}
+          </button>
+          <button type="button" class="opcion peligro" (click)="authService.logout()" role="menuitem">
+            <i class="bi bi-box-arrow-right"></i>Cerrar sesión
           </button>
         </div>
       }
     </div>
-  </header>
-</div>
+  }
+</header>

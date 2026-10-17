@@ -1,0 +1,59 @@
+.permisos { max-width: 1400px; margin: auto; }
+.filtros { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; }
+.filtros select { min-width: 11rem; }
+.ayuda { color: var(--ink-2); font-size: .78rem; }
+.tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+.vacio { grid-column: 1 / -1; }
+.tarjeta { padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: .35rem; border-left: 4px solid var(--brand); }
+.tarjeta[data-tipo=PAPELETA_SALIDA] { border-left-color: var(--warn); }
+.tarjeta[data-tipo=PERMISO] { border-left-color: var(--ok); }
+.tarjeta header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.tipo { font-size: .78rem; font-weight: 750; color: var(--ink-2); display: inline-flex; gap: .4rem; }
+.tarjeta h2, .salida h2 { font-size: 1.02rem; font-weight: 800; margin: .4rem 0 0; color: var(--ink); }
+.meta { font-size: .78rem; color: var(--ink-2); margin: 0; }
+dl { font-size: .8rem; margin: .3rem 0; }
+dl div { display: flex; justify-content: space-between; gap: 1rem; padding: .15rem 0; }
+dt { color: var(--ink-2); font-weight: 600; }
+dd { margin: 0; text-align: right; }
+.motivo { font-size: .85rem; margin: 0; color: var(--ink); }
+.observacion, .justificadas { font-size: .78rem; margin: 0; display: flex; gap: .4rem; color: var(--ink-2); }
+.justificadas { color: var(--ok); font-weight: 650; }
+.tarjeta footer { margin-top: auto; padding-top: .7rem; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }
+
+.salidas { display: flex; flex-direction: column; gap: .8rem; }
+.salida { display: flex; align-items: center; gap: 1.2rem; padding: 1rem 1.2rem; flex-wrap: wrap; }
+.salida.hecha { opacity: .65; }
+.hora-grande { font-size: 1.7rem; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; min-width: 5.5rem; }
+.recoge { margin: .25rem 0 0; font-size: .9rem; }
+
+.registro { display: flex; flex-direction: column; gap: 1.4rem; max-width: 900px; }
+fieldset { border: 0; padding: 0; margin: 0; }
+legend { font-size: .72rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: .5rem; }
+fieldset.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+fieldset.grid legend { grid-column: 1 / -1; }
+.ancho { grid-column: 1 / -1; }
+.buscador { position: relative; }
+.sugerencias { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); list-style: none; margin: 0; padding: .3rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-2); }
+.sugerencias button { width: 100%; text-align: left; border: 0; background: transparent; padding: .5rem .6rem; border-radius: 8px;
+  display: flex; justify-content: space-between; gap: 1rem; color: var(--ink); }
+.sugerencias button:hover { background: var(--surface-2); }
+.sugerencias small { color: var(--ink-2); }
+.elegido { display: flex; align-items: center; gap: .9rem; padding: .7rem .9rem; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.avatar { width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: var(--brand); color: var(--surface); font-weight: 800; }
+.tipos { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .7rem; }
+.opcion { position: relative; display: flex; flex-direction: column; gap: .25rem; padding: .8rem .9rem; border: 1.5px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; }
+.opcion input { position: absolute; opacity: 0; pointer-events: none; }
+.opcion.activa { border-color: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); }
+.opcion small { color: var(--ink-2); font-size: .76rem; }
+.registro footer, .dialogo footer { display: flex; justify-content: flex-end; gap: .6rem; }
+
+.modal-fondo { position: fixed; inset: 0; z-index: 1050; background: rgba(15, 20, 30, .45); display: grid; place-items: center; padding: 1rem; }
+.dialogo { width: min(520px, 100%); padding: 1.4rem; background: var(--surface); }
+.dialogo h2 { font-size: 1.1rem; font-weight: 800; }
+.dialogo footer { margin-top: 1rem; }
+
+@media (max-width: 640px) {
+  fieldset.grid { grid-template-columns: 1fr; }
+  .hora-grande { font-size: 1.3rem; min-width: auto; }
+}

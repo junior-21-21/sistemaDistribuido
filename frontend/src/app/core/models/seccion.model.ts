@@ -9,4 +9,5 @@ export interface Seccion {
   activa: boolean;
   anioEscolar: number;
   docenteTutorId?: number;
+  docenteTutorNombre?: string;
 }

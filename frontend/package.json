@@ -6,7 +6,10 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "test:unit": "ng test --watch=false",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:unit && npm run test:e2e && npm run build"
   },
   "private": true,
   "packageManager": "npm@11.19.0",
@@ -18,10 +21,13 @@
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
     "@angular/service-worker": "^21.2.0",
+    "@zxing/browser": "0.2.1",
+    "@zxing/library": "0.23.0",
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zone.js": "~0.16.3"
   },
   "devDependencies": {
     "@angular/build": "^21.2.3",

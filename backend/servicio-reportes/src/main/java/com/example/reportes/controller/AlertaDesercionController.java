@@ -5,6 +5,7 @@ import com.example.reportes.service.AlertaDesercionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import reactor.core.publisher.Mono;
 
 /**
  * Alertas tempranas de riesgo de desercion escolar.
@@ -21,13 +22,13 @@ public class AlertaDesercionController {
     }
 
     @GetMapping("/desercion")
-    public ResponseEntity<List<AlertaDesercionDTO>> getAlertasDesercion(
+    public Mono<ResponseEntity<List<AlertaDesercionDTO>>> getAlertasDesercion(
             @RequestParam(required = false) Long seccionId) {
-        return ResponseEntity.ok(alertaService.generarAlertas(seccionId));
+        return alertaService.generarAlertas(seccionId).map(ResponseEntity::ok);
     }
 
     @GetMapping("/desercion/count")
-    public ResponseEntity<Long> countAlertasActivas() {
-        return ResponseEntity.ok(alertaService.contarAlertasActivas());
+    public Mono<ResponseEntity<Long>> countAlertasActivas() {
+        return alertaService.contarAlertasActivas().map(ResponseEntity::ok);
     }
 }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.Set;
 
 /**
  * JwtUtil — Genera y valida tokens JWT para la Plataforma Académica.
@@ -22,15 +23,12 @@ public class JwtUtil {
     private final long expirationMs;
 
     public JwtUtil(
-        @Value("${jwt.secret:PAD_SecretKey_2026_HuamangaAyacucho_MuySegura!}") String secret,
+        @Value("${jwt.secret}") String secret,
         @Value("${jwt.expiration:3600000}") long expirationMs
     ) {
-        // Asegura que la clave tenga al menos 256 bits para HS256
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
-            byte[] padded = new byte[32];
-            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
-            keyBytes = padded;
+            throw new IllegalStateException("JWT_SECRET debe tener al menos 32 bytes");
         }
         this.key = Keys.hmacShaKeyFor(keyBytes);
         this.expirationMs = expirationMs;
@@ -39,17 +37,19 @@ public class JwtUtil {
     /**
      * Genera un token JWT con los datos del usuario.
      */
-    public String generateToken(String username, String rol, String nombreCompleto) {
+    public String generateToken(String username, String rol, Set<String> roles, String nombreCompleto, String email) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
             .subject(username)
             .claim("rol", rol)
+            .claim("roles", roles)
             .claim("nombre", nombreCompleto)
+            .claim("email", email)
             .issuedAt(now)
             .expiration(expiry)
-            .signWith(key)
+            .signWith(key, Jwts.SIG.HS256)
             .compact();
     }
 

@@ -31,6 +31,22 @@ public class SeccionController {
         return ResponseEntity.ok(seccionService.listarPorAnio(java.time.Year.now().getValue()));
     }
 
+    @GetMapping("/tutoria/mias")
+    public List<SeccionDTO> misTutorias(@RequestParam(required = false) Integer anioEscolar,
+                                        java.security.Principal principal) {
+        int anio = anioEscolar == null ? java.time.Year.now().getValue() : anioEscolar;
+        return seccionService.listarTutoriaDe(principal.getName(), anio);
+    }
+
+    @PutMapping("/{id}/tutor")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('DIRECTOR', 'SUBDIRECTOR')")
+    public ResponseEntity<SeccionDTO> asignarTutor(@PathVariable Long id,
+                                                   @RequestBody java.util.Map<String, Long> datos) {
+        return seccionService.asignarTutor(id, datos == null ? null : datos.get("docenteId"))
+            .map(ResponseEntity::ok)
+            .orElse(ResponseEntity.notFound().build());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<SeccionDTO> obtener(@PathVariable Long id) {
         return seccionService.buscarPorId(id)

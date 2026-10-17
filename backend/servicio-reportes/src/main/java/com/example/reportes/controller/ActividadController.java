@@ -3,6 +3,7 @@ package com.example.reportes.controller;
 import com.example.reportes.model.Actividad;
 import com.example.reportes.repository.ActividadRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ public class ActividadController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('DIRECTOR', 'SUBDIRECTOR', 'SECRETARIA', 'RESPONSABLE_CONVIVENCIA')")
     public ResponseEntity<Actividad> registrarActividad(@RequestBody Actividad actividad) {
         if (actividad.getFecha() == null) {
             actividad.setFecha(LocalDateTime.now());

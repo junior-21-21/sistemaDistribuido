@@ -1,113 +1,287 @@
 <div class="personal-container">
-  <!-- Header -->
   <div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
     <div>
-      <h1 class="page-title mb-1">Gestión de Personal Educativo</h1>
-      <p class="text-muted small mb-0">Control de Identidades y Accesos (IAM) de la Institución</p>
+      <h1 class="page-title mb-1">Personal y encargos</h1>
+      <p class="text-muted small mb-0">Cada persona tiene un puesto. Los encargos se dan a docentes o auxiliares que ya trabajan en el colegio.</p>
     </div>
-    <button class="btn btn-primary px-4 fw-semibold">
-      <i class="bi bi-person-plus me-1"></i> Nuevo Personal
+    <button class="btn btn-primary px-4 fw-semibold" type="button" (click)="abrirFormulario()" [disabled]="mostrarFormulario">
+      <i class="bi bi-person-plus me-1"></i> Nueva cuenta
     </button>
   </div>
 
-  <!-- Barra de Filtros Premium -->
-  <div class="glass-panel mb-4 p-4">
-    <div class="row g-3 align-items-end">
-      <!-- Buscador de texto -->
-      <div class="col-md-5">
-        <label class="form-label text-muted small fw-semibold mb-1">Buscar Colaborador</label>
-        <div class="input-group custom-input-group">
-          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
-          <input type="text" class="form-control border-start-0 ps-0" placeholder="Nombre, apellido o correo..." [(ngModel)]="searchTerm" (ngModelChange)="filtrar()">
+  <!-- Selector reutilizable de puesto + encargos -->
+  <ng-template #selectorRoles let-sel let-conApoderado="conApoderado">
+    <div class="selector-roles">
+      <span class="selector-titulo">Puesto</span>
+      <div class="puestos">
+        @for (rol of puestosDisponibles(conApoderado); track rol.codigo) {
+          <button type="button" class="puesto" [class.activo]="sel.puesto === rol.codigo"
+                  (click)="elegirPuesto(sel, rol.codigo)" [attr.aria-pressed]="sel.puesto === rol.codigo">
+            <i class="bi {{ rol.icono }}"></i>
+            <span>
+              <strong>{{ etiqueta[rol.codigo] }}</strong>
+              <small>{{ rol.descripcion }}</small>
+            </span>
+          </button>
+        }
+      </div>
+      @if (admiteEncargos(sel)) {
+        <span class="selector-titulo mt-3">Encargos <small>(opcional)</small></span>
+        <div class="encargos-opciones">
+          @for (encargo of encargos; track encargo.codigo) {
+            <label class="encargo-opcion" [class.activo]="sel.encargos.includes(encargo.codigo)">
+              <input type="checkbox" [checked]="sel.encargos.includes(encargo.codigo)"
+                     (change)="alternarEncargo(sel, encargo.codigo)">
+              <i class="bi {{ encargo.icono }}"></i>
+              <span><strong>{{ etiqueta[encargo.codigo] }}</strong><small>{{ encargo.descripcion }}</small></span>
+            </label>
+          }
+        </div>
+      } @else {
+        <p class="selector-nota"><i class="bi bi-info-circle me-1"></i>Los encargos solo se asignan a docentes o auxiliares.</p>
+      }
+    </div>
+  </ng-template>
+
+  <!-- Configuración del colegio: encargos vigentes y módulos opcionales -->
+  <div class="colegio-grid mb-4">
+    <section class="glass-panel p-4 panel-encargos">
+      <h2 class="panel-titulo"><i class="bi bi-person-check me-2"></i>Encargos vigentes</h2>
+      @for (encargo of encargos; track encargo.codigo) {
+        <div class="encargo-resumen">
+          <span class="encargo-icono"><i class="bi {{ encargo.icono }}"></i></span>
+          <div class="flex-grow-1">
+            <strong>{{ etiqueta[encargo.codigo] }}</strong>
+            <div class="responsables">
+              @for (persona of responsables[encargo.codigo] ?? []; track persona.id) {
+                <span class="chip-persona">{{ persona.nombre }} {{ persona.apellido.split(' ')[0] }}</span>
+              } @empty {
+                <span class="sin-responsable"><i class="bi bi-exclamation-circle me-1"></i>Sin asignar: elige a un docente o auxiliar en la lista</span>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    </section>
+    <section class="glass-panel p-4 panel-modulos">
+      <h2 class="panel-titulo"><i class="bi bi-toggles me-2"></i>Módulos del colegio</h2>
+      <p class="text-muted small mb-3">Actívalos solo si el colegio tiene ese personal. Si están apagados, sus pantallas no aparecen.</p>
+      @for (modulo of listaModulos; track modulo) {
+        <label class="modulo-fila" [class.encendido]="moduloHabilitado(modulo)">
+          <span>
+            <strong>{{ etiquetaModulo[modulo] }}</strong>
+            <small>
+              @switch (modulo) {
+                @case ('PSICOLOGIA') { Psicólogo/a que atiende derivaciones }
+                @case ('ENFERMERIA') { Enfermera/o en el tópico (si no hay, usa el encargo de primeros auxilios) }
+                @case ('PORTERIA') { Personal de guardianía que registra ingresos y verifica papeletas de salida }
+                @default { Personal que resuelve fallas (si no hay, las ve Dirección) }
+              }
+            </small>
+          </span>
+          <span class="interruptor">
+            <input type="checkbox" role="switch" [checked]="moduloHabilitado(modulo)"
+                   [disabled]="cambiandoModulo === modulo" (change)="alternarModulo(modulo)"
+                   [attr.aria-label]="'Módulo de ' + etiquetaModulo[modulo]">
+            <span class="perilla"></span>
+          </span>
+        </label>
+      }
+    </section>
+  </div>
+
+  @if (mensaje) {
+    <div class="feedback-panel mb-4" [class.feedback-error]="tipoMensaje === 'error'" role="status">
+      <div>
+        <strong>{{ tipoMensaje === 'error' ? 'No se completó la operación' : 'Operación completada' }}</strong>
+        <div>{{ mensaje }}</div>
+        @if (claveTemporal) {
+          <div class="temporary-key mt-2">
+            <span>Clave temporal</span>
+            <code>{{ claveTemporal }}</code>
+          </div>
+        }
+      </div>
+      <button type="button" class="btn-close btn-close-white" aria-label="Cerrar mensaje" (click)="limpiarMensaje()"></button>
+    </div>
+  }
+
+  @if (mostrarFormulario) {
+    <form class="glass-panel p-4 mb-4" #personalForm="ngForm" (ngSubmit)="crearPersonal()">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 class="form-title mb-1">Registrar colaborador</h2>
+          <p class="text-muted small mb-0">La primera clave deberá cambiarse después del ingreso.</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" aria-label="Cancelar" (click)="cancelarFormulario()"></button>
+      </div>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Nombres</label>
+          <input class="form-control" name="nombre" [(ngModel)]="nuevoPersonal.nombre" required maxlength="80">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Apellidos</label>
+          <input class="form-control" name="apellido" [(ngModel)]="nuevoPersonal.apellido" required maxlength="120">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Correo institucional</label>
+          <input class="form-control" type="email" name="email" [(ngModel)]="nuevoPersonal.email" required email maxlength="160">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Usuario</label>
+          <input class="form-control" name="username" [(ngModel)]="nuevoPersonal.username" required minlength="4" maxlength="40" pattern="[a-zA-Z0-9._-]+">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Clave inicial</label>
+          <input class="form-control" type="password" name="clave" [(ngModel)]="nuevoPersonal.clave" required minlength="10" maxlength="72" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{10,}" autocomplete="new-password">
+          <div class="text-muted mt-1" style="font-size: 0.7rem;">Incluye mayúscula, minúscula, número y símbolo.</div>
+        </div>
+        <div class="col-12">
+          <ng-container *ngTemplateOutlet="selectorRoles; context: { $implicit: seleccionNueva, conApoderado: true }"></ng-container>
+        </div>
+        @if (seleccionNueva.puesto === 'APODERADO') {
+          <div class="col-md-8">
+            <label class="form-label">Ficha de apoderado vinculada</label>
+            <select class="form-select" name="apoderadoId" [(ngModel)]="nuevoPersonal.apoderadoId" required>
+              <option [ngValue]="null">Selecciona un apoderado registrado</option>
+              @for (apoderado of apoderados; track apoderado.id) {
+                <option [ngValue]="apoderado.id">{{ apoderado.apellido }}, {{ apoderado.nombre }} · DNI {{ apoderado.dni }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="col-12 d-flex justify-content-end align-items-end gap-2">
+          <button class="btn btn-outline-light" type="button" (click)="cancelarFormulario()">Cancelar</button>
+          <button class="btn btn-primary" type="submit" [disabled]="personalForm.invalid || guardando">
+            {{ guardando ? 'Guardando…' : 'Crear cuenta' }}
+          </button>
         </div>
       </div>
-      
-      <!-- Filtro Rol -->
+    </form>
+  }
+
+  <div class="glass-panel mb-4 p-4">
+    <div class="row g-3 align-items-end">
+      <div class="col-md-5">
+        <label class="form-label text-muted small fw-semibold mb-1">Buscar colaborador</label>
+        <div class="input-group custom-input-group">
+          <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
+          <input type="search" class="form-control border-start-0 ps-0" placeholder="Nombre, usuario o correo…" [(ngModel)]="searchTerm" (ngModelChange)="filtrar()">
+        </div>
+      </div>
       <div class="col-md-4">
-        <label class="form-label text-muted small fw-semibold mb-1">Filtrar por Rol</label>
+        <label class="form-label text-muted small fw-semibold mb-1">Filtrar por rol</label>
         <select class="form-select custom-select" [(ngModel)]="filtroRol" (ngModelChange)="filtrar()">
-          <option value="">Todos los Roles</option>
-          <option value="DIRECTOR">Director / Directivo</option>
-          <option value="SECRETARIA">Secretaría</option>
-          <option value="DOCENTE">Docente</option>
-          <option value="ENFERMERA">Enfermera / Tópico</option>
-          <option value="PSICOLOGO">Psicólogo(a)</option>
+          <option value="">Todos los puestos y encargos</option>
+          @for (rol of todosLosRoles; track rol.codigo) {
+            <option [value]="rol.codigo">{{ etiqueta[rol.codigo] }}{{ rol.tipo === 'ENCARGO' ? ' (encargo)' : '' }}</option>
+          }
+          <option value="APODERADO">Familia (apoderados)</option>
         </select>
+      </div>
+      <div class="col-md-3 text-md-end text-muted small">
+        {{ totalPersonal }} cuentas encontradas
       </div>
     </div>
   </div>
 
-  <!-- Tabla -->
   <div class="glass-panel overflow-hidden">
     <div class="table-responsive">
       <table class="table custom-table mb-0">
         <thead>
           <tr>
             <th>Personal</th>
-            <th>Rol Asignado</th>
-            <th>Último Acceso</th>
+            <th>Puesto y encargos</th>
+            <th>Último acceso</th>
             <th>Estado</th>
-            <th class="text-end pe-4">Acciones Críticas</th>
+            <th class="text-end pe-4">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (p of filteredList; track p.id) {
-            <tr>
-              <td>
-                <div class="d-flex align-items-center gap-3">
-                  <div class="staff-avatar" [class.baja]="p.estado === 'BAJA'">
-                    {{ p.nombre.charAt(0) }}{{ p.apellido.charAt(0) }}
+          @if (cargando) {
+            <tr><td colspan="5" class="text-center p-5 text-muted">Cargando personal…</td></tr>
+          } @else {
+            @for (p of filteredList; track p.id) {
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="staff-avatar" [class.baja]="p.estado === 'BAJA'">{{ p.nombre.charAt(0) }}{{ p.apellido.charAt(0) }}</div>
+                    <div>
+                      <div class="fw-bold text-light staff-name">{{ p.apellido }}, {{ p.nombre }}</div>
+                      <div class="text-muted staff-detail">@{{ p.username }} · {{ p.email }}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div class="fw-bold text-light" style="font-size: 0.95rem;">{{ p.apellido }}, {{ p.nombre }}</div>
-                    <div class="text-muted" style="font-size: 0.75rem;"><i class="bi bi-envelope me-1"></i>{{ p.email }}</div>
+                </td>
+                <td>
+                  <div class="roles-celda">
+                    <span class="badge-puesto"><i class="bi {{ iconoDe(puestoDe(p)) }} me-1"></i>{{ etiqueta[puestoDe(p)] ?? puestoDe(p) }}</span>
+                    @for (otro of otrosPuestosDe(p); track otro) {
+                      <span class="badge-puesto secundario">{{ etiqueta[otro] ?? otro }}</span>
+                    }
+                    @for (encargo of encargosDe(p); track encargo) {
+                      <span class="badge-encargo"><i class="bi {{ iconoDe(encargo) }} me-1"></i>{{ etiqueta[encargo] }}</span>
+                    }
                   </div>
-                </div>
-              </td>
-              <td class="align-middle">
-                <span class="badge-rol glass-panel py-1 px-3 rounded-pill text-light" style="font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.1);">
-                  <i class="bi bi-shield-check me-1 text-primary-glow"></i> {{ p.rol }}
-                </span>
-              </td>
-              <td class="align-middle text-muted small">
-                {{ p.ultimoAcceso }}
-              </td>
-              <td class="align-middle">
-                @if (p.estado === 'ACTIVO') {
-                  <span class="status-indicator-inline active"><i class="bi bi-circle-fill me-1"></i> Activo</span>
-                } @else if (p.estado === 'PAUSADO') {
-                  <span class="status-indicator-inline paused"><i class="bi bi-pause-circle-fill me-1"></i> Pausado</span>
-                } @else {
-                  <span class="status-indicator-inline inactive"><i class="bi bi-dash-circle-fill me-1"></i> Baja</span>
-                }
-              </td>
-              <td class="align-middle text-end pe-4">
-                @if (p.estado !== 'BAJA') {
-                  <button class="btn-action me-2" [class.btn-pause]="p.estado === 'ACTIVO'" [class.btn-resume]="p.estado === 'PAUSADO'" (click)="toggleEstado(p)" title="Pausar / Reactivar Acceso">
-                    <i class="bi" [class.bi-pause]="p.estado === 'ACTIVO'" [class.bi-play]="p.estado === 'PAUSADO'"></i>
-                  </button>
-                  <button class="btn-action btn-reset me-2" (click)="resetClave(p)" title="Resetear Contraseña a 123456">
-                    <i class="bi bi-key"></i>
-                  </button>
-                  <button class="btn-action btn-delete" (click)="darDeBaja(p)" title="Dar de baja definitiva">
-                    <i class="bi bi-person-x"></i>
-                  </button>
-                } @else {
-                  <span class="text-muted small">Cuenta Revocada</span>
-                }
-              </td>
-            </tr>
-          }
-          @if (filteredList.length === 0) {
-            <tr>
-              <td colspan="5" class="text-center p-5 text-muted">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem; opacity: 0.5;"><i class="bi bi-shield-lock"></i></div>
-                No se encontró personal con esos filtros.
-              </td>
-            </tr>
+                </td>
+                <td class="text-muted small">{{ p.ultimoAcceso ? (p.ultimoAcceso | date:'dd/MM/yyyy HH:mm') : 'Nunca' }}</td>
+                <td>
+                  @if (p.estado === 'ACTIVO') {
+                    <span class="status-indicator-inline active"><i class="bi bi-circle-fill me-1"></i> Activo</span>
+                  } @else if (p.estado === 'PAUSADO') {
+                    <span class="status-indicator-inline paused"><i class="bi bi-pause-circle-fill me-1"></i> Pausado</span>
+                  } @else {
+                    <span class="status-indicator-inline inactive"><i class="bi bi-dash-circle-fill me-1"></i> Baja</span>
+                  }
+                </td>
+                <td class="text-end pe-4">
+                  @if (p.estado !== 'BAJA') {
+                    @if (puestoDe(p) !== 'APODERADO') {
+                      <button class="btn-action btn-editar me-2" (click)="abrirEdicion(p)" [disabled]="accionEnCurso === p.id" title="Cambiar puesto o encargos"><i class="bi bi-person-gear"></i></button>
+                    }
+                    <button class="btn-action me-2" [class.btn-pause]="p.estado === 'ACTIVO'" [class.btn-resume]="p.estado === 'PAUSADO'" (click)="toggleEstado(p)" [disabled]="accionEnCurso === p.id" title="Pausar o reactivar acceso"><i class="bi" [class.bi-pause]="p.estado === 'ACTIVO'" [class.bi-play]="p.estado === 'PAUSADO'"></i></button>
+                    <button class="btn-action btn-reset me-2" (click)="resetClave(p)" [disabled]="accionEnCurso === p.id" title="Generar clave temporal"><i class="bi bi-key"></i></button>
+                    <button class="btn-action btn-delete" (click)="darDeBaja(p)" [disabled]="accionEnCurso === p.id" title="Dar de baja"><i class="bi bi-person-x"></i></button>
+                  } @else {
+                    <span class="text-muted small">Cuenta revocada</span>
+                  }
+                </td>
+              </tr>
+              @if (editando?.id === p.id) {
+                <tr class="fila-edicion">
+                  <td colspan="5">
+                    <div class="edicion-roles">
+                      <div class="edicion-cabecera">
+                        <strong>Puesto y encargos de {{ p.nombre }} {{ p.apellido }}</strong>
+                        <button type="button" class="btn-close btn-close-white" aria-label="Cerrar" (click)="cancelarEdicion()"></button>
+                      </div>
+                      <ng-container *ngTemplateOutlet="selectorRoles; context: { $implicit: seleccionEdicion, conApoderado: false }"></ng-container>
+                      <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-light btn-sm" (click)="cancelarEdicion()">Cancelar</button>
+                        <button type="button" class="btn btn-primary btn-sm" (click)="guardarEdicion()" [disabled]="accionEnCurso === p.id">
+                          {{ accionEnCurso === p.id ? 'Guardando…' : 'Guardar cambios' }}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+            @if (filteredList.length === 0) {
+              <tr><td colspan="5" class="text-center p-5 text-muted"><i class="bi bi-shield-lock empty-icon"></i><div>No se encontró personal con esos filtros.</div></td></tr>
+            }
           }
         </tbody>
       </table>
     </div>
+    @if (totalPaginas > 1) {
+      <div class="d-flex justify-content-between align-items-center px-4 py-3 border-top">
+        <span class="text-muted small">Página {{ paginaActual + 1 }} de {{ totalPaginas }}</span>
+        <div class="btn-group">
+          <button class="btn btn-outline-primary btn-sm" (click)="cambiarPagina(-1)" [disabled]="paginaActual === 0">Anterior</button>
+          <button class="btn btn-outline-primary btn-sm" (click)="cambiarPagina(1)" [disabled]="paginaActual + 1 >= totalPaginas">Siguiente</button>
+        </div>
+      </div>
+    }
   </div>
 </div>

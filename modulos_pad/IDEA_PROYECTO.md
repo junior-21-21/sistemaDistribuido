@@ -55,13 +55,13 @@ Para asegurar que el sistema sea mantenible, escalable y robusto, se ha definido
 
 * **Backend - Spring Boot (Java):** Se construirá la lógica de los microservicios utilizando el framework Spring Boot. Este estándar de la industria ofrece una gestión excelente de la concurrencia, seguridad integrada (Spring Security) y un ecosistema preparado para trabajar de forma nativa con arquitecturas distribuidas.
 * **Frontend - Angular:** Las interfaces (tanto para el personal administrativo como para los docentes) se desarrollarán con Angular. Su arquitectura basada en componentes, inyección de dependencias y el uso de TypeScript garantizarán un código ordenado y facilitarán la conversión del sistema a una PWA (Aplicación Web Progresiva).
-* **Base de Datos - SQL Server:** Se empleará SQL Server como motor de base de datos relacional primario.
+* **Base de Datos - PostgreSQL:** Se empleará PostgreSQL como motor de base de datos relacional primario.
 * **Diseño y Normalización de Datos:** Se aplicarán estrictos estándares de ingeniería de software en el diseño de la base de datos. Esto incluye la **Normalización** (aplicando como mínimo la 3ra Forma Normal) para asegurar que no haya redundancia de información ni anomalías de actualización (ej. evitar que el nombre de un alumno se guarde en múltiples tablas). Además, se configurarán índices estratégicos, transacciones ACID y claves foráneas correctas para mantener la integridad referencial a pesar del alto volumen de matrículas y registros de un colegio público.
 
 ## 9. Seguridad, Auditoría y Continuidad del Negocio
 Tratándose de registros académicos oficiales y datos de menores de edad, el sistema debe ser impenetrable y confiable:
 * **Trazabilidad y Auditoría (Logs Inmutables):** Se implementará una tabla o servicio de auditoría estricto. Cada vez que un usuario modifique un dato crítico (ej. cambiar una nota final, eliminar una inasistencia o trasladar a un alumno), el sistema registrará silenciosamente quién realizó la acción (ID del usuario), la fecha/hora exacta, la dirección IP, el valor anterior y el valor nuevo. Esto previene fraudes y protege a la institución ante reclamos.
-* **Política de Respaldos (Backups Automatizados):** Para cumplir con la normativa de protección de datos y evitar catástrofes informáticas, la arquitectura ejecutará copias de seguridad automáticas (snapshots) de la base de datos SQL Server diariamente en horas de madrugada (ej. 3:00 AM). En caso de fallo de hardware o ataques, el sistema podrá restaurarse al día anterior sin pérdida masiva de información.
+* **Política de Respaldos (Backups Automatizados):** Para cumplir con la normativa de protección de datos y evitar catástrofes informáticas, la arquitectura ejecutará copias de seguridad automáticas de PostgreSQL diariamente en horas de madrugada. En caso de fallo de hardware o ataques, el sistema podrá restaurarse al último punto verificado.
 
 ## 10. Roles y Perfiles de Acceso (RBAC Detallado)
 El sistema estará enfocado principalmente en empoderar y facilitar el trabajo del Director y los Profesores, con una estricta separación de funciones:

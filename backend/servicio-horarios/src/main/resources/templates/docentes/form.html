@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head><meta charset="UTF-8"><title>Docente</title><script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-100 min-h-screen">
+<aside th:replace="~{fragments/nav :: nav}"></aside>
+<div class="ml-64 min-h-screen flex flex-col">
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-3 sticky top-0 z-40">
+        <a href="/docentes" class="w-9 h-9 bg-slate-100 hover:bg-slate-200 rounded-xl flex items-center justify-center transition"><svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></a>
+        <div><h1 class="text-lg font-bold text-slate-800">Registrar / Editar Docente</h1><p class="text-xs text-slate-400">Informacion del docente</p></div>
+    </header>
+    <main class="flex-1 p-6">
+        <div class="max-w-2xl">
+            <div class="bg-white rounded-2xl border border-slate-200 p-6">
+                <form th:action="@{/docentes/guardar}" th:object="${docente}" method="post" novalidate>
+                    <input type="hidden" th:field="*{id}">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Nombre <span class="text-red-500">*</span></label>
+                            <input type="text" th:field="*{nombre}" placeholder="Nombre" required th:class="${#fields.hasErrors('nombre')} ? 'w-full border-2 border-red-400 bg-red-50 rounded-xl px-4 py-3 text-sm focus:outline-none' : 'w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:bg-white focus:outline-none transition'">
+                            <p th:if="${#fields.hasErrors('nombre')}" class="text-red-500 text-xs mt-1.5" th:errors="*{nombre}"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Apellido <span class="text-red-500">*</span></label>
+                            <input type="text" th:field="*{apellido}" placeholder="Apellido" required th:class="${#fields.hasErrors('apellido')} ? 'w-full border-2 border-red-400 bg-red-50 rounded-xl px-4 py-3 text-sm focus:outline-none' : 'w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:bg-white focus:outline-none transition'">
+                            <p th:if="${#fields.hasErrors('apellido')}" class="text-red-500 text-xs mt-1.5" th:errors="*{apellido}"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">DNI <span class="text-red-500">*</span></label>
+                            <input type="text" th:field="*{dni}" placeholder="12345678" maxlength="8" required th:class="${#fields.hasErrors('dni')} ? 'w-full border-2 border-red-400 bg-red-50 rounded-xl px-4 py-3 text-sm focus:outline-none' : 'w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:bg-white focus:outline-none transition'">
+                            <p th:if="${#fields.hasErrors('dni')}" class="text-red-500 text-xs mt-1.5" th:errors="*{dni}"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Email <span class="text-red-500">*</span></label>
+                            <input type="email" th:field="*{email}" placeholder="correo@ejemplo.com" required th:class="${#fields.hasErrors('email')} ? 'w-full border-2 border-red-400 bg-red-50 rounded-xl px-4 py-3 text-sm focus:outline-none' : 'w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:bg-white focus:outline-none transition'">
+                            <p th:if="${#fields.hasErrors('email')}" class="text-red-500 text-xs mt-1.5" th:errors="*{email}"></p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Especialidad</label>
+                            <input type="text" th:field="*{especialidad}" placeholder="Ej: Matematicas, Fisica" class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:bg-white focus:outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">Estado</label>
+                            <select th:field="*{estado}" class="w-full border border-slate-200 bg-slate-50 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:bg-white focus:outline-none transition">
+                                <option value="ACTIVO">Activo</option>
+                                <option value="INACTIVO">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 pt-4 border-t border-slate-100">
+                        <button type="submit" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-2.5 rounded-xl transition text-sm"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>Guardar</button>
+                        <a href="/docentes" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-6 py-2.5 rounded-xl transition text-sm">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+</body>
+</html>

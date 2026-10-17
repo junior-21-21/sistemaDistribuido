@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: pad-services
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - api-gateway:8080
+          - servicio-estudiantes:8082
+          - servicio-cursos:8083
+          - servicio-evaluaciones:8084
+          - servicio-disciplina:8081
+          - servicio-reportes:8085
+          - servicio-notificaciones:8086

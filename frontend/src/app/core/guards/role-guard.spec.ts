@@ -1,17 +1,47 @@
 import { TestBed } from '@angular/core/testing';
-import { CanActivateFn } from '@angular/router';
+import { ActivatedRouteSnapshot, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
 
-import { roleGuard } from './role-guard';
+import { AuthService } from '../services/auth.service';
+import { roleGuard } from './role.guard';
 
 describe('roleGuard', () => {
-  const executeGuard: CanActivateFn = (...guardParameters) =>
-    TestBed.runInInjectionContext(() => roleGuard(...guardParameters));
+  const fallback = {} as UrlTree;
+  const auth = {
+    isLoggedIn: vi.fn(),
+    getRoles: vi.fn()
+  };
+  const router = { parseUrl: vi.fn(() => fallback) };
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    vi.clearAllMocks();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: AuthService, useValue: auth },
+        { provide: Router, useValue: router }
+      ]
+    });
   });
 
-  it('should be created', () => {
-    expect(executeGuard).toBeTruthy();
+  it('acepta cuando cualquiera de los roles de la cuenta coincide', () => {
+    auth.isLoggedIn.mockReturnValue(true);
+    auth.getRoles.mockReturnValue(['DIRECTOR', 'DOCENTE']);
+    const route = { data: { roles: ['DOCENTE'] } } as unknown as ActivatedRouteSnapshot;
+
+    const result = TestBed.runInInjectionContext(() =>
+      roleGuard(route, { url: '/evaluaciones' } as RouterStateSnapshot));
+
+    expect(result).toBe(true);
+  });
+
+  it('redirige si ningún rol coincide', () => {
+    auth.isLoggedIn.mockReturnValue(true);
+    auth.getRoles.mockReturnValue(['APODERADO']);
+    const route = { data: { roles: ['DIRECTOR'] } } as unknown as ActivatedRouteSnapshot;
+
+    const result = TestBed.runInInjectionContext(() =>
+      roleGuard(route, { url: '/personal' } as RouterStateSnapshot));
+
+    expect(result).toBe(fallback);
+    expect(router.parseUrl).toHaveBeenCalledWith('/dashboard');
   });
 });

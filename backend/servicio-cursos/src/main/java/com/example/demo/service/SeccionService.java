@@ -3,6 +3,8 @@ package com.example.demo.service;
 import com.example.demo.dto.SeccionDTO;
 import com.example.demo.model.Grado;
 import com.example.demo.model.Seccion;
+import com.example.demo.model.Docente;
+import com.example.demo.repository.DocenteRepository;
 import com.example.demo.repository.GradoRepository;
 import com.example.demo.repository.SeccionRepository;
 import org.springframework.stereotype.Service;
@@ -16,10 +18,37 @@ public class SeccionService {
 
     private final SeccionRepository seccionRepository;
     private final GradoRepository gradoRepository;
+    private final DocenteRepository docenteRepository;
 
-    public SeccionService(SeccionRepository seccionRepository, GradoRepository gradoRepository) {
+    public SeccionService(SeccionRepository seccionRepository, GradoRepository gradoRepository,
+                          DocenteRepository docenteRepository) {
         this.seccionRepository = seccionRepository;
         this.gradoRepository = gradoRepository;
+        this.docenteRepository = docenteRepository;
+    }
+
+    /** Secciones de las que el docente es tutor en el año escolar. */
+    @Transactional(readOnly = true)
+    public List<SeccionDTO> listarTutoriaDe(String username, Integer anioEscolar) {
+        return docenteRepository.findByUsernameIgnoreCase(username)
+            .map(d -> seccionRepository.findByDocenteTutorIdAndAnioEscolarAndActivaTrue(d.getId(), anioEscolar)
+                .stream().map(this::toDTO).toList())
+            .orElse(List.of());
+    }
+
+    /** Dirección designa (o retira, con null) al docente tutor de la sección. */
+    public Optional<SeccionDTO> asignarTutor(Long seccionId, Long docenteId) {
+        return seccionRepository.findById(seccionId).map(s -> {
+            if (docenteId != null) {
+                Docente docente = docenteRepository.findById(docenteId)
+                    .orElseThrow(() -> new IllegalArgumentException("Docente no encontrado"));
+                if (!"ACTIVO".equalsIgnoreCase(docente.getEstado())) {
+                    throw new IllegalArgumentException("El docente tutor debe estar activo");
+                }
+            }
+            s.setDocenteTutorId(docenteId);
+            return toDTO(seccionRepository.save(s));
+        });
     }
 
     public List<SeccionDTO> listarPorAnio(Integer anioEscolar) {
@@ -105,6 +134,10 @@ public class SeccionService {
         dto.setActiva(s.getActiva());
         dto.setAnioEscolar(s.getAnioEscolar());
         dto.setDocenteTutorId(s.getDocenteTutorId());
+        if (s.getDocenteTutorId() != null) {
+            docenteRepository.findById(s.getDocenteTutorId())
+                .ifPresent(d -> dto.setDocenteTutorNombre(d.getNombre() + " " + d.getApellido()));
+        }
         return dto;
     }
 }

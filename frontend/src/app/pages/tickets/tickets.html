@@ -1,10 +1,15 @@
 <div class="tickets-container">
+  <app-live-banner [modulos]="['tickets']" (refrescar)="cargarTickets()"></app-live-banner>
   <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-      <h1 class="page-title mb-1">🛠️ Mantenimiento e Infraestructura</h1>
+      <h1 class="page-title mb-1"><i class="bi bi-tools me-2"></i>Mantenimiento e Infraestructura</h1>
       <p class="text-muted small">Reporta problemas de mobiliario, eléctricos o fontanería en tu aula.</p>
     </div>
-    <button class="btn btn-primary fw-semibold" (click)="abrirModal()">+ Crear Ticket</button>
+    @if (puedeCrear) {
+      <button class="btn btn-primary fw-semibold" (click)="abrirModal()">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i> Crear ticket
+      </button>
+    }
   </div>
 
   @if (error) {
@@ -17,13 +22,34 @@
         <div class="card ticket-card h-100 border-0 p-4">
           <div class="d-flex justify-content-between mb-3">
             <span class="badge" [ngClass]="getBadgeClass(t.urgencia)">{{ t.urgencia }}</span>
-            <span class="fw-bold" [style.color]="t.estado === 'RESUELTO' ? '#10b981' : '#f59e0b'">
+            <span class="fw-bold" [style.color]="t.estado === 'RESUELTO' ? 'var(--ok)' : 'var(--warn)'">
               {{ t.estado }}
             </span>
           </div>
-          <h5 class="fw-bold mb-1">Aula {{ t.aulaId }} — {{ t.categoria }}</h5>
+          <h5 class="fw-bold mb-1">{{ getAulaNombre(t.aulaId) }} — {{ t.categoria }}</h5>
           <p class="text-muted small mb-3">{{ t.fechaReporte | date:'medium' }}</p>
           <p class="mb-3 flex-grow-1">{{ t.descripcion }}</p>
+
+          @if (puedeGestionar && ediciones[t.id]) {
+            <div class="management-box mt-auto">
+              <label class="form-label" [for]="'estado-ticket-' + t.id">Estado</label>
+              <select class="form-select mb-2" [id]="'estado-ticket-' + t.id"
+                      [(ngModel)]="ediciones[t.id].estado">
+                <option value="PENDIENTE">Pendiente</option>
+                <option value="EN_PROCESO">En proceso</option>
+                <option value="RESUELTO">Resuelto</option>
+              </select>
+              <label class="form-label" [for]="'notas-ticket-' + t.id">Notas de atención</label>
+              <textarea class="form-control mb-2" rows="2" [id]="'notas-ticket-' + t.id"
+                        maxlength="300" [(ngModel)]="ediciones[t.id].notasResolucion"
+                        placeholder="Trabajo realizado o diagnóstico"></textarea>
+              <button class="btn btn-primary w-100" type="button" (click)="actualizarTicket(t)"
+                      [disabled]="actualizandoId !== null">
+                <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                {{ actualizandoId === t.id ? 'Guardando…' : 'Guardar seguimiento' }}
+              </button>
+            </div>
+          }
           
           @if (t.estado === 'RESUELTO') {
             <div class="resolution-box p-3 rounded mt-auto">
@@ -33,6 +59,16 @@
           }
         </div>
       </div>
+    } @empty {
+      @if (!loading) {
+      <div class="col-12">
+        <div class="empty-state card">
+          <i class="bi bi-emoji-smile"></i>
+          <strong>No hay tickets por aquí</strong>
+          <p class="mb-0">Si algo de tu aula necesita reparación, usa “Crear ticket” y Mantenimiento lo verá al instante.</p>
+        </div>
+      </div>
+      }
     }
   </div>
 </div>
@@ -43,15 +79,15 @@
     <div class="modal-box" (click)="$event.stopPropagation()">
       <div class="modal-header d-flex justify-content-between align-items-center mb-4">
         <h5 class="fw-bold mb-0">Nuevo Ticket de Mantenimiento</h5>
-        <button class="btn-close-custom" (click)="cerrarModal()">✕</button>
+        <button class="btn-close-custom" (click)="cerrarModal()" aria-label="Cerrar"><i class="bi bi-x-lg"></i></button>
       </div>
       <div class="modal-body">
         <div class="mb-3">
           <label class="form-label">Aula / Espacio</label>
           <select class="form-select" [(ngModel)]="nuevoTicket.aulaId">
-            <option [value]="101">Aula 101 (Primaria)</option>
-            <option [value]="204">Aula 204 (Secundaria)</option>
-            <option [value]="300">Laboratorio Cómputo</option>
+            @for (aula of aulas; track aula.id) {
+              <option [value]="aula.id">{{ aula.nombre }}</option>
+            }
           </select>
         </div>
         <div class="row mb-3">
